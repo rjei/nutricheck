@@ -95,10 +95,10 @@ class _HomeScreenState extends State<HomeScreen> {
         activePage = _buildPlaceholderContent('Scan');
         break;
       case 3:
-        activePage = const ProfileScreen();
+        activePage = _buildPlaceholderContent('Aktivitas');
         break;
       case 4:
-        activePage = _buildPlaceholderContent('Aktivitas');
+        activePage = const ProfileScreen();
         break;
       default:
         activePage = _buildHomeContent();
@@ -131,8 +131,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             label: 'Scan',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), label: 'Profil'),
           BottomNavigationBarItem(icon: Icon(Icons.history_rounded), label: 'Aktivitas'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), label: 'Profil'),
         ],
       ),
     );
