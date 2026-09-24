@@ -62,7 +62,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Step Progress Header
+            // Step Header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
               child: Row(
@@ -83,15 +83,6 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
                       ),
                     ),
                   ),
-                  Text(
-                    'LANGKAH 1 DARI 3',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[500],
-                      letterSpacing: 1.0,
-                    ),
-                  ),
                   GestureDetector(
                     onTap: _handleSaveAndContinue,
                     child: Text(
@@ -104,24 +95,6 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
                     ),
                   ),
                 ],
-              ),
-            ),
-
-            // Progress Bar Line (33%)
-            Container(
-              width: double.infinity,
-              height: 4,
-              color: const Color(0xFFF0F4F8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  width: MediaQuery.of(context).size.width * 0.33,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: primaryGreen,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
               ),
             ),
 
