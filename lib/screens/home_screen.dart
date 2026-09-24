@@ -4,6 +4,7 @@ import '../widgets/adi_card_widget.dart';
 import '../widgets/trend_chart_widget.dart';
 import '../widgets/dominant_component_widget.dart';
 import 'profile_screen.dart';
+import 'notification_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,7 +36,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.notifications_none_rounded, color: Colors.grey),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),
