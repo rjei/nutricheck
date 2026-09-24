@@ -5,6 +5,7 @@ import '../widgets/trend_chart_widget.dart';
 import '../widgets/dominant_component_widget.dart';
 import 'profile_screen.dart';
 import 'notification_screen.dart';
+import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -97,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
         activePage = _buildHomeContent();
         break;
       case 1:
-        activePage = _buildPlaceholderContent('Cari');
+        activePage = const SearchScreen();
         break;
       case 2:
         activePage = _buildPlaceholderContent('Scan');
