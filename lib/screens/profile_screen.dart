@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_service.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -7,6 +9,14 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const primaryGreen = Color(0xFF0F5132);
+    final user = AuthService().currentUser;
+
+    final userName = user?.fullName ?? 'Budi Santoso';
+    final userMembership = user?.membershipStatus ?? 'Premium Member since January 2024';
+    final userLevel = user?.level ?? 12;
+    final userScore = user?.nutritionScore ?? 85;
+    final userAvatar = user?.avatarUrl ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80';
+    final selectedConditions = user?.selectedConditions ?? ['Bebas Gluten', 'Intoleransi Sulfite'];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
@@ -65,12 +75,10 @@ class ProfileScreen extends StatelessWidget {
                           color: primaryGreen,
                           shape: BoxShape.circle,
                         ),
-                        child: const CircleAvatar(
+                        child: CircleAvatar(
                           radius: 40,
-                          backgroundColor: Color(0xFFE8F4EA),
-                          backgroundImage: NetworkImage(
-                            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-                          ),
+                          backgroundColor: const Color(0xFFE8F4EA),
+                          backgroundImage: NetworkImage(userAvatar),
                         ),
                       ),
                       Container(
@@ -90,7 +98,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Budi Santoso',
+                    userName,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -99,7 +107,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Premium Member since January 2024',
+                    userMembership,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       color: Colors.grey[500],
@@ -120,7 +128,7 @@ class ProfileScreen extends StatelessWidget {
                         child: Column(
                           children: [
                             Text(
-                              'Level 12',
+                              'Level $userLevel',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -147,7 +155,7 @@ class ProfileScreen extends StatelessWidget {
                         child: Column(
                           children: [
                             Text(
-                              '85% Nutrition',
+                              '$userScore% Nutrition',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -172,9 +180,9 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Preferensi Diet Section
+            // Preferensi Diet & Alergi Section
             Text(
-              'Preferensi Diet',
+              'Preferensi Diet & Alergi',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
@@ -183,123 +191,35 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Unselected Card: Vegan
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0F4F8),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.eco_outlined,
-                      color: Color(0xFF7A8B9B),
-                      size: 20,
-                    ),
+            // Condition Chips
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: selectedConditions.map((cond) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F4EA),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: primaryGreen, width: 1.2),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Vegan',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: primaryGreen, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        cond,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: primaryGreen,
                         ),
-                        Text(
-                          'Gaya hidup nabati',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey[300]!, width: 2),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            // Selected Card: Bebas Gluten
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F4EA),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: primaryGreen, width: 1.5),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: primaryGreen,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.grass_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Bebas Gluten',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: primaryGreen,
-                          ),
-                        ),
-                        Text(
-                          'Alergi & Intoleransi',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11,
-                            color: primaryGreen.withValues(alpha: 0.8),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: primaryGreen,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check,
-                      size: 14,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
+                );
+              }).toList(),
             ),
 
             const SizedBox(height: 24),
@@ -378,22 +298,35 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 children: [
                   _buildSettingsTile(
+                    context: context,
                     icon: Icons.notifications_none_rounded,
                     title: 'Notifikasi',
                     titleColor: Colors.black87,
                     isLast: false,
+                    onTap: () {},
                   ),
                   _buildSettingsTile(
+                    context: context,
                     icon: Icons.shield_outlined,
                     title: 'Keamanan',
                     titleColor: Colors.black87,
                     isLast: false,
+                    onTap: () {},
                   ),
                   _buildSettingsTile(
+                    context: context,
                     icon: Icons.logout_rounded,
                     title: 'Keluar',
                     titleColor: const Color(0xFFD9383A),
                     isLast: true,
+                    onTap: () {
+                      AuthService().logout();
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    },
                   ),
                 ],
               ),
@@ -480,10 +413,12 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildSettingsTile({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required Color titleColor,
     required bool isLast,
+    required VoidCallback onTap,
   }) {
     return Column(
       children: [
@@ -505,7 +440,7 @@ class ProfileScreen extends StatelessWidget {
                   color: Colors.grey,
                   size: 20,
                 ),
-          onTap: () {},
+          onTap: onTap,
         ),
         if (!isLast)
           Divider(
