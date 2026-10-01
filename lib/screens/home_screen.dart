@@ -5,8 +5,6 @@ import '../widgets/trend_chart_widget.dart';
 import '../widgets/dominant_component_widget.dart';
 import 'profile_screen.dart';
 import 'notification_screen.dart';
-import 'search_screen.dart';
-import 'scan_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -99,13 +97,13 @@ class _HomeScreenState extends State<HomeScreen> {
         activePage = _buildHomeContent();
         break;
       case 1:
-        activePage = const SearchScreen();
+        activePage = _buildPlaceholderContent('Cari');
         break;
       case 2:
-        activePage = const ScanScreen();
+        activePage = _buildPlaceholderContent('Scan');
         break;
       case 3:
-        activePage = _buildPlaceholderContent('Riwayat');
+        activePage = _buildPlaceholderContent('Aktivitas');
         break;
       case 4:
         activePage = const ProfileScreen();
@@ -132,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
         unselectedLabelStyle: GoogleFonts.plusJakartaSans(fontSize: 10),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.search_rounded), label: 'Telusuri'),
+          BottomNavigationBarItem(icon: Icon(Icons.search_rounded), label: 'Cari'),
           BottomNavigationBarItem(
             icon: CircleAvatar(
               radius: 22,
@@ -141,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             label: 'Scan',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.history_rounded), label: 'Riwayat'),
+          BottomNavigationBarItem(icon: Icon(Icons.history_rounded), label: 'Aktivitas'),
           BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), label: 'Profil'),
         ],
       ),
