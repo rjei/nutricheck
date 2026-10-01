@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // 1. Import paket flutter_svg
+import 'package:flutter_svg/flutter_svg.dart';
 import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -35,13 +35,10 @@ class _SplashScreenState extends State<SplashScreen> {
             Center(
               child: Column(
                 children: [
-                  // 2. Ganti ke SvgPicture.asset
                   SvgPicture.asset(
-                    'assets/images/logo.svg', // Path file logo.svg kamu
+                    'assets/logo.svg',
                     width: 120,
                     height: 120,
-                    // Opsional: jika mau ubah warna logo SVG lewat kode
-                    // colorFilter: const ColorFilter.mode(Color(0xFF0F5132), BlendMode.srcIn),
                   ),
                   const SizedBox(height: 16),
                   Text(
