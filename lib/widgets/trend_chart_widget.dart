@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'day_selector_widget.dart'; // Import day selector
+import 'day_selector_widget.dart';
 
 class TrendChartWidget extends StatelessWidget {
   const TrendChartWidget({super.key});
@@ -8,7 +8,7 @@ class TrendChartWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: [
+      children: [// Import day selector
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [

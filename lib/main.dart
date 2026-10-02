@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'screens/splash_screen.dart';
+
+import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
+import 'services/auth_service.dart';
 
 void main() {
   runApp(const NutriCheckApp());
@@ -11,6 +14,7 @@ class NutriCheckApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authService = AuthService();
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'NutriCheck',
@@ -18,7 +22,7 @@ class NutriCheckApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF9FAFB),
         textTheme: GoogleFonts.plusJakartaSansTextTheme(),
       ),
-      home: const SplashScreen(),
+      home: authService.isLoggedIn ? const HomeScreen() : const LoginScreen(),
     );
   }
 }
