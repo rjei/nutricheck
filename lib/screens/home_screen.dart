@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../widgets/app_header.dart';
+import '../widgets/app_footer.dart';
 import '../widgets/adi_card_widget.dart';
 import '../widgets/trend_chart_widget.dart';
 import '../widgets/dominant_component_widget.dart';
 import 'profile_screen.dart';
-import 'notification_screen.dart';
+import 'search_screen.dart';
+import 'scan_screen.dart';
+import 'activity_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,34 +21,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomeContent() {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'nutricheck',
-          style: GoogleFonts.comfortaa(
-            color: const Color(0xFF0F5132),
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline_rounded, color: Colors.grey),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: Colors.grey),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationScreen(),
-                ),
-              );
-            },
-          ),
-        ],
+      appBar: const AppHeader(
+        showDefaultActions: true,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -57,33 +34,8 @@ class _HomeScreenState extends State<HomeScreen> {
             TrendChartWidget(),
             SizedBox(height: 20),
             DominantComponentWidget(),
+            SizedBox(height: 16),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderContent(String title) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          title,
-          style: GoogleFonts.comfortaa(
-            color: const Color(0xFF0F5132),
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-          ),
-        ),
-      ),
-      body: Center(
-        child: Text(
-          'Halaman $title dalam pengembangan',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 14,
-            color: Colors.grey[600],
-          ),
         ),
       ),
     );
@@ -97,13 +49,13 @@ class _HomeScreenState extends State<HomeScreen> {
         activePage = _buildHomeContent();
         break;
       case 1:
-        activePage = _buildPlaceholderContent('Cari');
+        activePage = const SearchScreen();
         break;
       case 2:
-        activePage = _buildPlaceholderContent('Scan');
+        activePage = const ScanScreen();
         break;
       case 3:
-        activePage = _buildPlaceholderContent('Aktivitas');
+        activePage = const ActivityScreen();
         break;
       case 4:
         activePage = const ProfileScreen();
@@ -114,34 +66,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       body: activePage,
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: AppFooter(
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        selectedItemColor: const Color(0xFF0F5132),
-        unselectedItemColor: Colors.grey[400],
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
-        selectedLabelStyle: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: GoogleFonts.plusJakartaSans(fontSize: 10),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.search_rounded), label: 'Cari'),
-          BottomNavigationBarItem(
-            icon: CircleAvatar(
-              radius: 22,
-              backgroundColor: Color(0xFF0F5132),
-              child: Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 22),
-            ),
-            label: 'Scan',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.history_rounded), label: 'Aktivitas'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), label: 'Profil'),
-        ],
       ),
     );
   }
