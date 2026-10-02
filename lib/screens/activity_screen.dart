@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../constants/app_colors.dart';
-import '../widgets/app_footer.dart';
-import 'home_screen.dart';
 import 'product_detail_screen.dart';
 
 enum ProductSafety { aman, waspada, bahaya }
@@ -206,18 +204,6 @@ class _ActivityScreenState extends State<ActivityScreen> {
     }).toList();
   }
 
-  void _onTabTapped(int index) {
-    if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
-          transitionDuration: Duration.zero,
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredProducts;
@@ -272,7 +258,6 @@ class _ActivityScreenState extends State<ActivityScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: AppFooter(currentIndex: 3, onTap: _onTabTapped),
     );
   }
 
