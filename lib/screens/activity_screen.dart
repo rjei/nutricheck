@@ -108,7 +108,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
         sodium: 850,
         date: now.subtract(const Duration(days: 1)),
         isConsumed: true,
-        warning: 'Kandungan natrium sangat tinggi (850 mg). Konsumsi terbatas sangat disarankan.',
+        warning:
+            'Kandungan natrium sangat tinggi (850 mg). Konsumsi terbatas sangat disarankan.',
       ),
       ActivityProduct(
         brand: 'SEGAR',
@@ -165,13 +166,11 @@ class _ActivityScreenState extends State<ActivityScreen> {
         HistoryFilter.aman => product.safety == ProductSafety.aman,
       };
       final matchesTime = switch (_timeFilter) {
-        'Hari Ini' =>
-          product.date.year == now.year &&
-              product.date.month == now.month &&
-              product.date.day == now.day,
-        'Minggu Ini' =>
-          now.difference(product.date).inDays < 7 &&
-              product.date.isBefore(now.add(const Duration(days: 1))),
+        'Hari Ini' => product.date.year == now.year &&
+            product.date.month == now.month &&
+            product.date.day == now.day,
+        'Minggu Ini' => now.difference(product.date).inDays < 7 &&
+            product.date.isBefore(now.add(const Duration(days: 1))),
         'Bulan Ini' =>
           product.date.year == now.year && product.date.month == now.month,
         _ => true,
@@ -211,7 +210,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (_, _, _) => const HomeScreen(),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const HomeScreen(),
           transitionDuration: Duration.zero,
         ),
       );
@@ -339,7 +339,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: labels.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 8),
                   itemBuilder: (_, index) => _FilterChip(
                     label: labels[index],
                     selected: _selectedFilter.index == index,
@@ -520,26 +521,27 @@ class _ActivityScreenState extends State<ActivityScreen> {
   }
 
   String _statusLabel(ProductSafety status) => switch (status) {
-    ProductSafety.aman => 'Aman',
-    ProductSafety.waspada => 'Waspada',
-    ProductSafety.bahaya => 'Bahaya',
-  };
+        ProductSafety.aman => 'Aman',
+        ProductSafety.waspada => 'Waspada',
+        ProductSafety.bahaya => 'Bahaya',
+      };
 
   ProductSafety _statusFromLabel(String label) => switch (label) {
-    'Aman' => ProductSafety.aman,
-    'Waspada' => ProductSafety.waspada,
-    _ => ProductSafety.bahaya,
-  };
+        'Aman' => ProductSafety.aman,
+        'Waspada' => ProductSafety.waspada,
+        _ => ProductSafety.bahaya,
+      };
 
   TextStyle _text(
     double size,
     FontWeight weight, [
     Color color = AppColors.textPrimary,
-  ]) => GoogleFonts.plusJakartaSans(
-    fontSize: size,
-    fontWeight: weight,
-    color: color,
-  );
+  ]) =>
+      GoogleFonts.plusJakartaSans(
+        fontSize: size,
+        fontWeight: weight,
+        color: color,
+      );
 }
 
 class _FilterChip extends StatelessWidget {
@@ -691,12 +693,13 @@ class _ProgressSegment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Expanded(
-    flex: value == 0 ? 1 : value,
-    child: Container(
-      height: 8,
-      color: total == 0 || value == 0 ? color.withValues(alpha: 0.15) : color,
-    ),
-  );
+        flex: value == 0 ? 1 : value,
+        child: Container(
+          height: 8,
+          color:
+              total == 0 || value == 0 ? color.withValues(alpha: 0.15) : color,
+        ),
+      );
 }
 
 class _Legend extends StatelessWidget {
@@ -709,22 +712,22 @@ class _Legend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-    children: [
-      Container(
-        width: 7,
-        height: 7,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
-      const SizedBox(width: 5),
-      Text(
-        '$label (${total == 0 ? 0 : (value / total * 100).round()}%)',
-        style: GoogleFonts.plusJakartaSans(
-          fontSize: 9,
-          color: AppColors.textSecondary,
-        ),
-      ),
-    ],
-  );
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            '$label (${total == 0 ? 0 : (value / total * 100).round()}%)',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 9,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      );
 }
 
 class _HistoryItemCard extends StatelessWidget {
@@ -739,16 +742,16 @@ class _HistoryItemCard extends StatelessWidget {
   });
 
   Color get _statusColor => switch (product.safety) {
-    ProductSafety.aman => AppColors.primaryAccent,
-    ProductSafety.waspada => const Color(0xFFFFB74D),
-    ProductSafety.bahaya => const Color(0xFFE57373),
-  };
+        ProductSafety.aman => AppColors.primaryAccent,
+        ProductSafety.waspada => const Color(0xFFFFB74D),
+        ProductSafety.bahaya => const Color(0xFFE57373),
+      };
 
   String get _statusLabel => switch (product.safety) {
-    ProductSafety.aman => 'Aman',
-    ProductSafety.waspada => 'Waspada',
-    ProductSafety.bahaya => 'Bahaya',
-  };
+        ProductSafety.aman => 'Aman',
+        ProductSafety.waspada => 'Waspada',
+        ProductSafety.bahaya => 'Bahaya',
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -943,45 +946,46 @@ class _NutritionPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Expanded(
-    child: Container(
-      margin: const EdgeInsets.only(right: 4),
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 3),
-      decoration: BoxDecoration(
-        color: warning ? const Color(0xFFFFF1F1) : const Color(0xFFF1F5FC),
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 8,
-              color: AppColors.textSecondary,
-            ),
+        child: Container(
+          margin: const EdgeInsets.only(right: 4),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 3),
+          decoration: BoxDecoration(
+            color: warning ? const Color(0xFFFFF1F1) : const Color(0xFFF1F5FC),
+            borderRadius: BorderRadius.circular(7),
           ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-              color: warning ? const Color(0xFFC62828) : AppColors.textPrimary,
-            ),
-          ),
-          if (warning)
-            Text(
-              'Tinggi',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 7,
-                color: const Color(0xFFC62828),
+          child: Column(
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 8,
+                  color: AppColors.textSecondary,
+                ),
               ),
-            ),
-        ],
-      ),
-    ),
-  );
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color:
+                      warning ? const Color(0xFFC62828) : AppColors.textPrimary,
+                ),
+              ),
+              if (warning)
+                Text(
+                  'Tinggi',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 7,
+                    color: const Color(0xFFC62828),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
 }
 
 class _EmptyHistory extends StatelessWidget {
@@ -989,56 +993,56 @@ class _EmptyHistory extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: AppColors.primarySurface,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.history_rounded,
-              size: 42,
-              color: AppColors.primaryAccent,
-            ),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: AppColors.primarySurface,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.history_rounded,
+                  size: 42,
+                  color: AppColors.primaryAccent,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Tidak ada riwayat ditemukan',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Coba ubah kata kunci atau filter pencarian Anda.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Tidak ada riwayat ditemukan',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Coba ubah kata kunci atau filter pencarian Anda.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 BoxDecoration _cardDecoration() => BoxDecoration(
-  color: Colors.white,
-  borderRadius: BorderRadius.circular(16),
-  boxShadow: [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: 0.035),
-      blurRadius: 12,
-      offset: const Offset(0, 4),
-    ),
-  ],
-);
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
