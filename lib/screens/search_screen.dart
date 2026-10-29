@@ -1,636 +1,450 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../constants/risk_level_style.dart';
+import '../data/datasources/product_data_source.dart';
+import '../data/models/additive.dart';
+import '../data/models/product.dart';
+import '../data/models/risk_level.dart';
+import '../data/repositories/additive_repository.dart';
+import '../data/repositories/product_repository.dart';
 import 'notification_screen.dart';
+import 'product_detail_screen.dart';
+
+/// Kategori filter. [tag] adalah tag kategori Open Food Facts; chip
+/// [isAdditive] menampilkan basis data aditif lokal, bukan produk.
+class _SearchCategory {
+  const _SearchCategory(this.label, {this.tag, this.isAdditive = false});
+
+  final String label;
+  final String? tag;
+  final bool isAdditive;
+}
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  const SearchScreen({
+    super.key,
+    this.productRepository,
+    this.additiveRepository,
+  });
+
+  /// Untuk pengujian; default memakai [ProductRepository.instance].
+  final ProductRepository? productRepository;
+
+  /// Untuk pengujian; default memakai [AdditiveRepository.instance].
+  final AdditiveRepository? additiveRepository;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<SearchScreen> {
+  static const Duration _debounceDuration = Duration(milliseconds: 500);
+
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  String _selectedCategory = 'Semua';
+  Timer? _debounce;
 
-  final List<String> _recentSearches = [
-    'Oat Milk Unsweetened',
-    'Natrium Benzoat E211',
-    'Kecap Low Sodium',
+  static const List<_SearchCategory> _categories = [
+    _SearchCategory('Semua'),
+    _SearchCategory('Minuman', tag: 'en:beverages'),
+    _SearchCategory('Snack', tag: 'en:snacks'),
+    _SearchCategory('Susu & Olahan', tag: 'en:dairies'),
+    _SearchCategory('Bumbu Dapur', tag: 'en:condiments'),
+    _SearchCategory('Mi Instan', tag: 'en:instant-noodles'),
+    _SearchCategory('Zat Aditif', isAdditive: true),
   ];
 
-  final List<String> _categories = [
-    'Semua',
-    'Minuman',
-    'Snack Sehat',
-    'Susu & Olahan',
-    'Bumbu Dapur',
-    'Bebas Gula',
-    'Rendah Natrium',
-    'Aditif & E-Code',
-  ];
+  _SearchCategory _selectedCategory = _categories.first;
 
-  final List<Map<String, dynamic>> _allProducts = [
-    {
-      'id': '1',
-      'name': 'Oat Milk Unsweetened Barista',
-      'brand': 'Oatly Premium',
-      'category': 'Minuman',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 5.0,
-      'ecode': 'E412 (Guar Gum)',
-      'rating': 4.9,
-      'tags': ['Bebas Gula', 'Minuman', 'Bebas Gluten'],
-      'description': 'Susu gandum murni tanpa gula tambahan. Kandungan aditif penstabil minimal & aman untuk dikonsumsi harian.',
-      'recommendation': 'Sangat disarankan untuk diet bebas laktosa dan rendah gula.',
-    },
-    {
-      'id': '2',
-      'name': 'Kecap Manis Rendah Gula',
-      'brand': 'Tropicana Slim',
-      'category': 'Bumbu Dapur',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 8.0,
-      'ecode': 'E955 (Sukralosa)',
-      'rating': 4.8,
-      'tags': ['Bumbu Dapur', 'Rendah Natrium', 'Bebas Gula'],
-      'description': 'Kecap manis alternatif bagi penderita diabetes dan hipertensi, menggunakan pemanis tingkat keamanan tinggi.',
-      'recommendation': 'Penggunaan sukralosa berada di bawah 2% dari ADI maksimum BPOM.',
-    },
-    {
-      'id': '3',
-      'name': 'Yogurt Greek Plain 0% Fat',
-      'brand': 'Heavenly Blush',
-      'category': 'Susu & Olahan',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 2.0,
-      'ecode': 'Bakteri L. Bulgaricus',
-      'rating': 4.9,
-      'tags': ['Susu & Olahan', 'Snack Sehat', 'Bebas Gula'],
-      'description': 'Yogurt Greek tanpa bahan pengawet sintesis, kaya protein cair whey terpisah alami.',
-      'recommendation': 'Sumber kalsium dan probiotik yang aman untuk pencernaan sensitif.',
-    },
-    {
-      'id': '4',
-      'name': 'Extra Virgin Olive Oil Cold Pressed',
-      'brand': 'Borges Organics',
-      'category': 'Bumbu Dapur',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 0.0,
-      'ecode': 'Alami (100% Organik)',
-      'rating': 4.9,
-      'tags': ['Bumbu Dapur', 'Snack Sehat'],
-      'description': 'Minyak zaitun murni pemerasan dingin pertama. Tanpa aditif pewarna, pemutih, atau pengawet kimia.',
-      'recommendation': 'Sangat baik untuk kesehatan jantung dan pemeliharaan lemak baik.',
-    },
-    {
-      'id': '5',
-      'name': 'Keripik Kentang Rasa Wagyu BBQ',
-      'brand': 'Chitato Select',
-      'category': 'Snack Sehat',
-      'safetyStatus': 'Perlu Perhatian',
-      'safetyColor': const Color(0xFFD97706),
-      'safetyBg': const Color(0xFFFEF3C7),
-      'adiPercentage': 48.0,
-      'ecode': 'E621 (MSG) & E211',
-      'rating': 4.3,
-      'tags': ['Snack Sehat'],
-      'description': 'Keripik kentang renyah dengan rasa gurih. Mengandung penguat rasa Monosodium Glutamat & Natrium Benzoat.',
-      'recommendation': 'Batasi konsumsi 1 kemasan per hari untuk mencegah paparan natrium berlebih.',
-    },
-    {
-      'id': '6',
-      'name': 'Natrium Benzoat (E211)',
-      'brand': 'Aditif Pengawet',
-      'category': 'Aditif & E-Code',
-      'safetyStatus': 'Risiko Moderat',
-      'safetyColor': const Color(0xFFD97706),
-      'safetyBg': const Color(0xFFFEF3C7),
-      'adiPercentage': 65.0,
-      'ecode': 'E211',
-      'rating': 3.5,
-      'tags': ['Aditif & E-Code'],
-      'description': 'Zat pengawet anti-jamur dan bakteri pada makanan & minuman bersoda atau saus.',
-      'recommendation': 'ADI maksimum BPOM: 5 mg/kg berat badan. Hindari konsumsi bersama Vitamin C berlebih.',
-    },
-    {
-      'id': '7',
-      'name': 'Ekstrak Stevia R-A (E960)',
-      'brand': 'Pemanis Alami',
-      'category': 'Aditif & E-Code',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 4.0,
-      'ecode': 'E960',
-      'rating': 4.8,
-      'tags': ['Aditif & E-Code', 'Bebas Gula'],
-      'description': 'Glikosida steviol dari daun Stevia rebaudiana. Memiliki kalori 0 dan tidak memicu lonjakan glukosa.',
-      'recommendation': 'ADI BPOM: 4 mg/kg BB per hari. Aman digunakan untuk gaya hidup bebas gula.',
-    },
-    {
-      'id': '8',
-      'name': 'Susu UHT Full Cream Low Fat',
-      'brand': 'Greenfields',
-      'category': 'Susu & Olahan',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 3.0,
-      'ecode': 'E407 (Karagenan Minimal)',
-      'rating': 4.7,
-      'tags': ['Susu & Olahan', 'Minuman'],
-      'description': 'Susu segar UHT dengan kandungan lemak terdistribusi rendah dan kalsium tinggi.',
-      'recommendation': 'Cocok untuk konsumsi harian keluarga dan pemenuhan kalsium harian.',
-    },
-    {
-      'id': '9',
-      'name': 'Kecap Asin Rendah Natrium',
-      'brand': 'Kikkoman Less Sodium',
-      'category': 'Bumbu Dapur',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 12.0,
-      'ecode': 'Fermentasi Alami',
-      'rating': 4.8,
-      'tags': ['Bumbu Dapur', 'Rendah Natrium'],
-      'description': 'Kecap asin fermentasi kedelai alami dengan pengurangan garam hingga 40% dari standar.',
-      'recommendation': 'Pilihan ideal untuk masakan seimbang tanpa kehilangan cita rasa khas.',
-    },
-    {
-      'id': '10',
-      'name': 'Granola Bites Chocolate Vanilla',
-      'brand': 'East Bali Cashews',
-      'category': 'Snack Sehat',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 10.0,
-      'ecode': 'Alami (Madu & Kakao)',
-      'rating': 4.9,
-      'tags': ['Snack Sehat', 'Rendah Natrium'],
-      'description': 'Camilan oat dipanggang dengan kacang mete lokal, vanila alami, dan cokelat murni.',
-      'recommendation': 'Tinggi serat pangan alami tanpa pengawet sintetis.',
-    },
-    {
-      'id': '11',
-      'name': 'Almond Milk Unsweetened',
-      'brand': 'Almond Breeze',
-      'category': 'Minuman',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 4.0,
-      'ecode': 'E322 (Lestin Kedelai)',
-      'rating': 4.8,
-      'tags': ['Minuman', 'Bebas Gula', 'Rendah Natrium'],
-      'description': 'Minuman olahan kacang almond murni kaya Vitamin E tanpa penambahan gula pasir.',
-      'recommendation': 'Rendah kalori (hanya 30 kkal per sajian) dan ramah bagi penderita intoleransi laktosa.',
-    },
-    {
-      'id': '12',
-      'name': 'Monosodium Glutamat (E621)',
-      'brand': 'Penguat Rasa MSG',
-      'category': 'Aditif & E-Code',
-      'safetyStatus': 'Perlu Perhatian',
-      'safetyColor': const Color(0xFFD97706),
-      'safetyBg': const Color(0xFFFEF3C7),
-      'adiPercentage': 55.0,
-      'ecode': 'E621',
-      'rating': 4.0,
-      'tags': ['Aditif & E-Code'],
-      'description': 'Zat penguat rasa umami asam glutamat terfermentasi.',
-      'recommendation': 'Disetujui BPOM & FDA. Konsumsi secukupnya untuk menghindari kepekaan rasa manis/gurih berlebih.',
-    },
-    {
-      'id': '13',
-      'name': 'Tartrazin Kuning (E102)',
-      'brand': 'Pewarna Sintetis',
-      'category': 'Aditif & E-Code',
-      'safetyStatus': 'Risiko Moderat',
-      'safetyColor': const Color(0xFFD97706),
-      'safetyBg': const Color(0xFFFEF3C7),
-      'adiPercentage': 60.0,
-      'ecode': 'E102',
-      'rating': 3.2,
-      'tags': ['Aditif & E-Code'],
-      'description': 'Pewarna sintetis kuning lemon yang digunakan dalam minuman ringan, permen, dan makanan ringan.',
-      'recommendation': 'ADI maksimum 7.5 mg/kg BB. Dapat memicu reaksi hiperaktif pada anak sensitif.',
-    },
-    {
-      'id': '14',
-      'name': 'Sari Buah Apel Murni 100%',
-      'brand': 'Country Choice',
-      'category': 'Minuman',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 6.0,
-      'ecode': 'E300 (Asam Askorbat)',
-      'rating': 4.6,
-      'tags': ['Minuman'],
-      'description': 'Jus buah apel segar yang diperkaya Vitamin C alami sebagai antioksidan pengawet.',
-      'recommendation': 'Tanpa pemanis buatan, mengandung gula alami dari buah (fruktosa).',
-    },
-    {
-      'id': '15',
-      'name': 'Dark Chocolate 85% Cocoa',
-      'brand': 'Lindt Excellence',
-      'category': 'Snack Sehat',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 5.0,
-      'ecode': 'E476 (Polirisinoleat)',
-      'rating': 4.9,
-      'tags': ['Snack Sehat', 'Bebas Gula'],
-      'description': 'Cokelat hitam intens dengan kadar flavonoid antioksidan tinggi dan rendah kadar pemanis.',
-      'recommendation': 'Sangat baik untuk konsumsi camilan diet rendah kalori dan menjaga kesehatan pembuluh darah.',
-    },
-    {
-      'id': '16',
-      'name': 'Garam Laut Alami Unrefined',
-      'brand': 'Puravita Pure',
-      'category': 'Bumbu Dapur',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 15.0,
-      'ecode': 'Mineral Alami',
-      'rating': 4.7,
-      'tags': ['Bumbu Dapur', 'Rendah Natrium'],
-      'description': 'Garam kristal laut murni kaya mineral jejak tanpa pemutih atau anti-kempal kimiawi.',
-      'recommendation': 'Mengandung magnesium & kalium alami yang memperlembut asupan natrium.',
-    },
-    {
-      'id': '17',
-      'name': 'Krimer Nabati Multi-Serat',
-      'brand': 'Fiber Creme',
-      'category': 'Bumbu Dapur',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 7.0,
-      'ecode': 'Oligosakarida Alami',
-      'rating': 4.8,
-      'tags': ['Bumbu Dapur', 'Rendah Natrium'],
-      'description': 'Pengganti santan dan krimer tinggi serat oligosakarida bebas kolesterol.',
-      'recommendation': 'Aman digunakan untuk sajian kopi, sup, dan hidangan penutup sehat.',
-    },
-    {
-      'id': '18',
-      'name': 'Sirup Rasa Karamel Zero Sugar',
-      'brand': 'Torani Sugar Free',
-      'category': 'Minuman',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 9.0,
-      'ecode': 'E950 (Acesulfame-K)',
-      'rating': 4.6,
-      'tags': ['Minuman', 'Bebas Gula'],
-      'description': 'Sirup perisa karamel tanpa kalori untuk racikan kopi & minuman dingin.',
-      'recommendation': 'Aman bagi program kadiovaskular dan manajemen berat badan.',
-    },
-    {
-      'id': '19',
-      'name': 'Asam Sitrat (E330)',
-      'brand': 'Pengatur Keasaman',
-      'category': 'Aditif & E-Code',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 2.0,
-      'ecode': 'E330',
-      'rating': 4.9,
-      'tags': ['Aditif & E-Code'],
-      'description': 'Senyawa keasaman alami yang umumnya diekstrak dari jeruk dan buah sitrus.',
-      'recommendation': 'Tingkat keamanan sangat tinggi (ADI Not Specified / Bebas Batas Kuota BPOM).',
-    },
-    {
-      'id': '20',
-      'name': 'Keju Cheddar High Calcium',
-      'brand': 'Kraft Singles Light',
-      'category': 'Susu & Olahan',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 18.0,
-      'ecode': 'E200 (Asam Sorbat)',
-      'rating': 4.7,
-      'tags': ['Susu & Olahan'],
-      'description': 'Keju lembaran rendah lemak tinggi kalsium & protein olahan.',
-      'recommendation': 'Pengawet asam sorbat berada di tingkat minimal yang aman bagi anak-anak.',
-    },
-    {
-      'id': '21',
-      'name': 'Biskuit Gandum Whole Wheat',
-      'brand': 'Roma Whole Wheat',
-      'category': 'Snack Sehat',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 12.0,
-      'ecode': 'E500 (Natrium Bikarbonat)',
-      'rating': 4.6,
-      'tags': ['Snack Sehat', 'Rendah Natrium'],
-      'description': 'Biskuit kaya gandum utuh dengan serat tinggi untuk membantu rasa kenyang lebih lama.',
-      'recommendation': 'Menggunakan pengembang Soda Kue alami yang sangat aman.',
-    },
-    {
-      'id': '22',
-      'name': 'Minyak Wijen Murni 100%',
-      'brand': 'Lee Kum Kee Pure',
-      'category': 'Bumbu Dapur',
-      'safetyStatus': 'Aman',
-      'safetyColor': const Color(0xFF0F5132),
-      'safetyBg': const Color(0xFFD1E7DD),
-      'adiPercentage': 0.0,
-      'ecode': 'Murni Biji Wijen Sangrai',
-      'rating': 4.9,
-      'tags': ['Bumbu Dapur'],
-      'description': 'Minyak wijen murni hasil pemerasan biji wijen pilihan tanpa pengawet sintetis.',
-      'recommendation': 'Kaya antioksidan sesamol dan asam lemak tak jenuh ganda.',
-    },
-  ];
+  // Hasil produk (Open Food Facts, hanya Indonesia).
+  List<Product> _products = [];
+  int _totalCount = 0;
+  int _page = 1;
+  bool _hasMore = false;
+  bool _isLoading = false;
+  bool _isLoadingMore = false;
+  String? _errorMessage;
+
+  // Hasil aditif (basis data lokal).
+  List<Additive> _additiveResults = [];
+
+  /// Mencegah respons lama menimpa hasil pencarian yang lebih baru.
+  int _requestId = 0;
+
+  ProductRepository get _productRepository =>
+      widget.productRepository ?? ProductRepository.instance;
+
+  AdditiveRepository get _additiveRepository =>
+      widget.additiveRepository ?? AdditiveRepository.instance;
+
+  /// Mode aditif: chip "Zat Aditif" dipilih, atau pengguna mengetik kode E
+  /// (mis. "E211", "INS 211") pada kategori "Semua".
+  bool get _isAdditiveMode =>
+      _selectedCategory.isAdditive ||
+      (_selectedCategory.tag == null &&
+          AdditiveRepository.normalizeCode(_searchQuery) != null);
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text;
-      });
-    });
+    _searchController.addListener(_onQueryChanged);
+    _refresh();
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
+  void _onQueryChanged() {
+    final query = _searchController.text;
+    if (query == _searchQuery) return;
+    setState(() => _searchQuery = query);
+
+    _debounce?.cancel();
+    _debounce = Timer(_debounceDuration, _refresh);
+  }
+
   void _onSearchSubmitted(String query) {
-    if (query.trim().isNotEmpty && !_recentSearches.contains(query.trim())) {
+    _debounce?.cancel();
+    _refresh();
+  }
+
+  void _selectCategory(_SearchCategory category) {
+    if (identical(category, _selectedCategory)) return;
+    _debounce?.cancel();
+    setState(() => _selectedCategory = category);
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final requestId = ++_requestId;
+    final query = _searchQuery.trim();
+
+    if (_isAdditiveMode) {
+      try {
+        final results = await _additiveRepository.search(query);
+        if (!mounted || requestId != _requestId) return;
+        setState(() {
+          _additiveResults = results;
+          _isLoading = false;
+          _errorMessage = null;
+        });
+      } catch (_) {
+        if (!mounted || requestId != _requestId) return;
+        setState(() {
+          _additiveResults = [];
+          _isLoading = false;
+          _errorMessage = 'Gagal memuat basis data aditif.';
+        });
+      }
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final result = await _productRepository.search(
+        query,
+        categoryTag: _selectedCategory.tag,
+      );
+      if (!mounted || requestId != _requestId) return;
       setState(() {
-        _recentSearches.insert(0, query.trim());
-        if (_recentSearches.length > 5) {
-          _recentSearches.removeLast();
-        }
+        _products = result.products;
+        _totalCount = result.totalCount;
+        _page = result.page;
+        _hasMore = result.hasMore;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted || requestId != _requestId) return;
+      setState(() {
+        _products = [];
+        _totalCount = 0;
+        _hasMore = false;
+        _isLoading = false;
+        _errorMessage = e is ProductSourceException
+            ? e.message
+            : 'Terjadi kesalahan saat mencari produk.';
       });
     }
   }
 
-  List<Map<String, dynamic>> get _filteredProducts {
-    return _allProducts.where((product) {
-      final nameMatches = product['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
-      final brandMatches = product['brand'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
-      final ecodeMatches = product['ecode'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
-      final categoryMatches = product['category'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    final requestId = _requestId;
+    setState(() => _isLoadingMore = true);
 
-      final matchesQuery = _searchQuery.isEmpty || nameMatches || brandMatches || ecodeMatches || categoryMatches;
-
-      bool matchesCategory = true;
-      if (_selectedCategory != 'Semua') {
-        if (_selectedCategory == 'Bebas Gula') {
-          matchesCategory = (product['tags'] as List).contains('Bebas Gula');
-        } else if (_selectedCategory == 'Rendah Natrium') {
-          matchesCategory = (product['tags'] as List).contains('Rendah Natrium');
-        } else {
-          matchesCategory = product['category'] == _selectedCategory;
-        }
-      }
-
-      return matchesQuery && matchesCategory;
-    }).toList();
+    try {
+      final result = await _productRepository.search(
+        _searchQuery.trim(),
+        categoryTag: _selectedCategory.tag,
+        page: _page + 1,
+      );
+      if (!mounted || requestId != _requestId) return;
+      final known = _products.map((p) => p.barcode).toSet();
+      setState(() {
+        _products = [
+          ..._products,
+          ...result.products.where((p) => !known.contains(p.barcode)),
+        ];
+        _page = result.page;
+        _hasMore = result.hasMore;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e is ProductSourceException ? e.message : 'Gagal memuat produk berikutnya.',
+          ),
+        ),
+      );
+    }
   }
 
-  void _showProductDetail(Map<String, dynamic> item) {
+  void _openProduct(Product product) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductDetailScreen(
+          product: product,
+          repository: widget.productRepository,
+        ),
+      ),
+    );
+  }
+
+  void _showAdditiveDetail(Additive additive) {
+    final adiText = additive.adiMgPerKgBw != null
+        ? '${additive.adiMgPerKgBw! % 1 == 0 ? additive.adiMgPerKgBw!.toStringAsFixed(0) : additive.adiMgPerKgBw} mg/kg BB'
+        : (additive.adiNote ?? 'Tidak ditentukan');
+    final risk = additive.riskLevel;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.88,
           ),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item['brand'],
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              additive.category.label,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF6D7A77),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              additive.displayName,
+                              style: GoogleFonts.comfortaa(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF191C1E),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: risk.backgroundColor,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          risk.label,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF6D7A77),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item['name'],
-                          style: GoogleFonts.comfortaa(
-                            fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: const Color(0xFF191C1E),
+                            color: risk.color,
                           ),
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 12),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _InfoBox(
+                          label: 'KODE / ADITIF',
+                          value: additive.eNumber ?? 'Tanpa kode E',
+                          valueColor: const Color(0xFF0F5132),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _InfoBox(
+                          label: 'BATAS HARIAN (ADI)',
+                          value: adiText,
+                          valueColor: risk.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  Text(
+                    'Penjelasan',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF191C1E),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: item['safetyBg'],
-                      borderRadius: BorderRadius.circular(20),
+                  const SizedBox(height: 6),
+                  Text(
+                    additive.summary,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      color: const Color(0xFF3D4947),
+                      height: 1.4,
                     ),
-                    child: Text(
-                      item['safetyStatus'],
+                  ),
+                  if (additive.aliases.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Nama lain: ${additive.aliases.join(', ')}',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: item['safetyColor'],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF9FAFB),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'KODE / ADITIF',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            item['ecode'],
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF0F5132),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF9FAFB),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'KONTRIBUSI ADI',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${item['adiPercentage']}% dari batas',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: item['safetyColor'],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              Text(
-                'Deskripsi Produk & Komposisi',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF191C1E),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                item['description'],
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  color: const Color(0xFF3D4947),
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0FDF4),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFBBF7D0)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.verified_user_rounded, color: Color(0xFF0F5132), size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        item['recommendation'],
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF0F5132),
-                        ),
+                        color: Colors.grey[600],
                       ),
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(height: 24),
+                  if (additive.commonIn.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Umum ditemukan pada: ${additive.commonIn.join(', ')}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
 
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F5132),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(9999),
+                  if (additive.healthEffects.isNotEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: risk.backgroundColor.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: risk.backgroundColor),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(risk.icon, color: risk.color, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                for (final effect in additive.healthEffects)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text(
+                                      '• $effect',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: risk.color,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    elevation: 0,
-                  ),
-                  icon: const Icon(Icons.check_circle_outline, size: 18),
-                  label: Text(
-                    'Selesai Mengulas',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                  if (!additive.bpomPermitted) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Dilarang digunakan sebagai bahan tambahan pangan.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: RiskLevel.bahaya.color,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0F5132),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(9999),
+                        ),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.check_circle_outline, size: 18),
+                      label: Text(
+                        'Selesai Mengulas',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
@@ -639,6 +453,9 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final additiveMode = _isAdditiveMode;
+    final resultCount = additiveMode ? _additiveResults.length : _totalCount;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FB),
       appBar: AppBar(
@@ -698,6 +515,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           child: TextField(
                             controller: _searchController,
                             onSubmitted: _onSearchSubmitted,
+                            textInputAction: TextInputAction.search,
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 14,
                               color: const Color(0xFF191C1E),
@@ -767,13 +585,9 @@ class _SearchScreenState extends State<SearchScreen> {
                       separatorBuilder: (context, index) => const SizedBox(width: 8),
                       itemBuilder: (context, index) {
                         final category = _categories[index];
-                        final isSelected = _selectedCategory == category;
+                        final isSelected = identical(_selectedCategory, category);
                         return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _selectedCategory = category;
-                            });
-                          },
+                          onTap: () => _selectCategory(category),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
@@ -788,7 +602,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               ],
                             ),
                             child: Text(
-                              category,
+                              category.label,
                               style: GoogleFonts.plusJakartaSans(
                                 color: isSelected ? Colors.white : const Color(0xFF3D4947),
                                 fontSize: 12,
@@ -815,7 +629,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                       ),
                       Text(
-                        '${_filteredProducts.length} Produk',
+                        additiveMode ? '$resultCount Aditif' : '$resultCount Produk',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           color: Colors.grey[600],
@@ -824,178 +638,487 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    additiveMode
+                        ? 'Basis data zat aditif lokal (BPOM & JECFA)'
+                        : 'Hanya produk yang beredar di Indonesia • Data: Open Food Facts',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                    ),
+                  ),
                   const SizedBox(height: 8),
+                  if (_isLoading && _products.isNotEmpty && !additiveMode)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 4),
+                      child: LinearProgressIndicator(
+                        minHeight: 3,
+                        color: Color(0xFF0F5132),
+                        backgroundColor: Color(0xFFD1E7DD),
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
 
           // Product / Search Result List
-          _filteredProducts.isEmpty
-              ? SliverToBoxAdapter(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-                    alignment: Alignment.center,
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.search_off_rounded,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Tidak ada produk ditemukan',
-                          style: GoogleFonts.comfortaa(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF191C1E),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Coba cari kata kunci lain seperti "E211", "Oat Milk", atau "Stevia"',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final product = _filteredProducts[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12.0),
-                          child: GestureDetector(
-                            onTap: () => _showProductDetail(product),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x06000000),
-                                    blurRadius: 10,
-                                    offset: Offset(0, 4),
-                                  )
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF0FDF4),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      product['category'] == 'Aditif & E-Code'
-                                          ? Icons.science_rounded
-                                          : Icons.fastfood_rounded,
-                                      color: const Color(0xFF0F5132),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          product['brand'],
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: const Color(0xFF6D7A77),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          product['name'],
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: const Color(0xFF191C1E),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.security_rounded,
-                                              size: 13,
-                                              color: Color(0xFF0F5132),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              product['ecode'],
-                                              style: GoogleFonts.plusJakartaSans(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                                color: const Color(0xFF0F5132),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: product['safetyBg'],
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Text(
-                                          product['safetyStatus'],
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: product['safetyColor'],
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF59E0B)),
-                                          const SizedBox(width: 2),
-                                          Text(
-                                            '${product['rating']}',
-                                            style: GoogleFonts.plusJakartaSans(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: const Color(0xFF3D4947),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      childCount: _filteredProducts.length,
-                    ),
-                  ),
-                ),
+          ..._buildResults(additiveMode),
           const SliverToBoxAdapter(
             child: SizedBox(height: 30),
           ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildResults(bool additiveMode) {
+    if (_errorMessage != null) {
+      return [
+        SliverToBoxAdapter(
+          child: _MessagePanel(
+            icon: Icons.cloud_off_rounded,
+            title: 'Tidak dapat memuat data',
+            message: _errorMessage!,
+            actionLabel: 'Coba Lagi',
+            onAction: _refresh,
+          ),
+        ),
+      ];
+    }
+
+    if (additiveMode) {
+      if (_additiveResults.isEmpty) {
+        return const [
+          SliverToBoxAdapter(
+            child: _MessagePanel(
+              icon: Icons.search_off_rounded,
+              title: 'Tidak ada aditif ditemukan',
+              message: 'Coba kata kunci lain seperti "E211", "micin", atau "pemanis".',
+            ),
+          ),
+        ];
+      }
+      return [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final additive = _additiveResults[index];
+                return _AdditiveCard(
+                  additive: additive,
+                  onTap: () => _showAdditiveDetail(additive),
+                );
+              },
+              childCount: _additiveResults.length,
+            ),
+          ),
+        ),
+      ];
+    }
+
+    if (_isLoading && _products.isEmpty) {
+      return const [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 48),
+            child: Center(
+              child: CircularProgressIndicator(color: Color(0xFF0F5132)),
+            ),
+          ),
+        ),
+      ];
+    }
+
+    if (_products.isEmpty) {
+      return const [
+        SliverToBoxAdapter(
+          child: _MessagePanel(
+            icon: Icons.search_off_rounded,
+            title: 'Tidak ada produk ditemukan',
+            message: 'Tidak ada produk Indonesia yang cocok. Coba kata kunci lain '
+                'seperti "indomie", "teh botol", atau "kecap".',
+          ),
+        ),
+      ];
+    }
+
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              if (index == _products.length) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Center(
+                    child: _isLoadingMore
+                        ? const CircularProgressIndicator(color: Color(0xFF0F5132))
+                        : OutlinedButton(
+                            onPressed: _loadMore,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF0F5132),
+                              side: const BorderSide(color: Color(0xFFD1E7DD)),
+                            ),
+                            child: Text(
+                              'Muat Lebih Banyak',
+                              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                  ),
+                );
+              }
+              final product = _products[index];
+              return _ProductCard(product: product, onTap: () => _openProduct(product));
+            },
+            childCount: _products.length + (_hasMore ? 1 : 0),
+          ),
+        ),
+      ),
+    ];
+  }
+}
+
+class _ProductCard extends StatelessWidget {
+  const _ProductCard({required this.product, required this.onTap});
+
+  final Product product;
+  final VoidCallback onTap;
+
+  static const Map<String, Color> _nutriScoreColors = {
+    'a': Color(0xFF038141),
+    'b': Color(0xFF85BB2F),
+    'c': Color(0xFFD4A800),
+    'd': Color(0xFFEE8100),
+    'e': Color(0xFFE63E11),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final grade = product.nutriscoreGrade;
+    final gradeColor = grade == null ? null : _nutriScoreColors[grade];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x06000000),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              )
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: product.imageUrl == null
+                    ? const _ProductIcon()
+                    : Image.network(
+                        product.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const _ProductIcon(),
+                      ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (product.brand != null)
+                      Text(
+                        product.brand!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF6D7A77),
+                        ),
+                      ),
+                    const SizedBox(height: 2),
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF191C1E),
+                      ),
+                    ),
+                    if (product.quantity != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.inventory_2_outlined,
+                            size: 13,
+                            color: Color(0xFF0F5132),
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              product.quantity!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0F5132),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (gradeColor != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: gradeColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Nutri-Score ${grade!.toUpperCase()}',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: gradeColor,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProductIcon extends StatelessWidget {
+  const _ProductIcon();
+
+  @override
+  Widget build(BuildContext context) =>
+      const Icon(Icons.fastfood_rounded, color: Color(0xFF0F5132));
+}
+
+class _AdditiveCard extends StatelessWidget {
+  const _AdditiveCard({required this.additive, required this.onTap});
+
+  final Additive additive;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final risk = additive.riskLevel;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x06000000),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              )
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: risk.backgroundColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.science_rounded, color: risk.color),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      additive.category.label,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF6D7A77),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      additive.displayName,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF191C1E),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: risk.backgroundColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  additive.bpomPermitted ? risk.label : 'Dilarang',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: risk.color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoBox extends StatelessWidget {
+  const _InfoBox({
+    required this.label,
+    required this.value,
+    required this.valueColor,
+  });
+
+  final String label;
+  final String value;
+  final Color valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: valueColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MessagePanel extends StatelessWidget {
+  const _MessagePanel({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.comfortaa(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF191C1E),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              color: Colors.grey[600],
+            ),
+          ),
+          if (actionLabel != null) ...[
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: onAction,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(
+                actionLabel!,
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF0F5132),
+                side: const BorderSide(color: Color(0xFFD1E7DD)),
+              ),
+            ),
+          ],
         ],
       ),
     );

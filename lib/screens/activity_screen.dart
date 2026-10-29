@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../constants/app_colors.dart';
+import '../data/models/product.dart';
 import 'product_detail_screen.dart';
 
 enum ProductSafety { aman, waspada, bahaya }
@@ -390,7 +391,11 @@ class _ActivityScreenState extends State<ActivityScreen> {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ProductDetailScreen(),
+                  builder: (context) => ProductDetailScreen(
+                    // TODO: ganti dengan produk nyata dari riwayat pemindaian
+                    // setelah basis data riwayat dibuat.
+                    product: Product.local(name: product.title, brand: product.brand),
+                  ),
                 ),
               ),
             ),
