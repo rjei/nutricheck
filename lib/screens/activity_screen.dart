@@ -2,46 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../constants/app_colors.dart';
+import '../models/activity_product.dart';
 import '../data/models/product.dart';
+import '../widgets/searchbar.dart';
 import 'product_detail_screen.dart';
-
-enum ProductSafety { aman, waspada, bahaya }
-
-class ActivityProduct {
-  final String brand;
-  final String title;
-  final String time;
-  final String location;
-  final ProductSafety safety;
-  final IconData icon;
-  final int calories;
-  final int sugar;
-  final int fiber;
-  final int protein;
-  final int sodium;
-  final DateTime date;
-  final String? warning;
-  bool isConsumed;
-
-  ActivityProduct({
-    required this.brand,
-    required this.title,
-    required this.time,
-    required this.location,
-    required this.safety,
-    required this.icon,
-    required this.calories,
-    required this.sugar,
-    required this.fiber,
-    required this.protein,
-    required this.sodium,
-    required this.date,
-    required this.isConsumed,
-    this.warning,
-  });
-}
-
-enum HistoryFilter { semua, dikonsumsi, bahaya, waspada, aman }
 
 class ActivityScreen extends StatefulWidget {
   const ActivityScreen({super.key});
@@ -153,8 +117,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
     final now = DateTime.now();
     return _products.where((product) {
       final searchable =
-          '${product.title} ${product.brand} ${product.warning ?? ''}'
-              .toLowerCase();
+      '${product.title} ${product.brand} ${product.warning ?? ''}'
+          .toLowerCase();
       final matchesSearch = query.isEmpty || searchable.contains(query);
       final matchesFilter = switch (_selectedFilter) {
         HistoryFilter.semua => true,
@@ -165,14 +129,14 @@ class _ActivityScreenState extends State<ActivityScreen> {
       };
       final matchesTime = switch (_timeFilter) {
         'Hari Ini' =>
-          product.date.year == now.year &&
-              product.date.month == now.month &&
-              product.date.day == now.day,
+        product.date.year == now.year &&
+            product.date.month == now.month &&
+            product.date.day == now.day,
         'Minggu Ini' =>
-          now.difference(product.date).inDays < 7 &&
-              product.date.isBefore(now.add(const Duration(days: 1))),
+        now.difference(product.date).inDays < 7 &&
+            product.date.isBefore(now.add(const Duration(days: 1))),
         'Bulan Ini' =>
-          product.date.year == now.year && product.date.month == now.month,
+        product.date.year == now.year && product.date.month == now.month,
         _ => true,
       };
       final matchesStatus =
@@ -181,7 +145,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
         'Gula Tinggi' => product.sugar >= 20,
         'Natrium Tinggi' => product.sodium >= 500,
         'Pengawet Sintetis' =>
-          product.warning?.toLowerCase().contains('pengawet') ?? false,
+        product.warning?.toLowerCase().contains('pengawet') ?? false,
         _ => true,
       };
       return matchesSearch &&
@@ -193,9 +157,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
   }
 
   List<ActivityProduct> _productsForGroup(
-    List<ActivityProduct> products,
-    int dayOffset,
-  ) {
+      List<ActivityProduct> products,
+      int dayOffset,
+      ) {
     final now = DateTime.now();
     return products.where((product) {
       final target = now.subtract(Duration(days: dayOffset));
@@ -269,52 +233,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
       children: [
         Text('Aktivitas', style: _text(23, FontWeight.w700)),
         const SizedBox(height: 12),
-        Container(
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (_) => setState(() {}),
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              color: AppColors.textPrimary,
-            ),
-            decoration: InputDecoration(
-              prefixIcon: const Icon(
-                Icons.search_rounded,
-                color: AppColors.textMuted,
-                size: 20,
-              ),
-              suffixIcon: _searchController.text.isEmpty
-                  ? const Icon(
-                      Icons.tune_rounded,
-                      color: AppColors.primaryAccent,
-                      size: 20,
-                    )
-                  : IconButton(
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        color: AppColors.textMuted,
-                        size: 18,
-                      ),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {});
-                      },
-                    ),
-              hintText: 'Cari produk, merek, atau zat aditif...',
-              hintStyle: GoogleFonts.plusJakartaSans(
-                fontSize: 12,
-                color: AppColors.textMuted,
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-          ),
+        // Menggunakan CustomSearchBar terpisah tanpa mengubah logika aslinya
+        CustomSearchBar(
+          controller: _searchController,
+          onChanged: (_) => setState(() {}),
+          onClear: () {
+            _searchController.clear();
+            setState(() {});
+          },
+          onFilterTap: _showFilterSheet,
+          hintText: 'Cari produk, merek, atau zat aditif...',
+          showTrailingFilter: true,
         ),
         const SizedBox(height: 10),
         Row(
@@ -330,7 +259,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     label: labels[index],
                     selected: _selectedFilter.index == index,
                     onTap: () => setState(
-                      () => _selectedFilter = HistoryFilter.values[index],
+                          () => _selectedFilter = HistoryFilter.values[index],
                     ),
                   ),
                 ),
@@ -382,7 +311,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
           ),
         ),
         ...products.map(
-          (product) => Padding(
+              (product) => Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: _HistoryItemCard(
               product: product,
@@ -392,8 +321,6 @@ class _ActivityScreenState extends State<ActivityScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => ProductDetailScreen(
-                    // TODO: ganti dengan produk nyata dari riwayat pemindaian
-                    // setelah basis data riwayat dibuat.
                     product: Product.local(name: product.title, brand: product.brand),
                   ),
                 ),
@@ -427,21 +354,21 @@ class _ActivityScreenState extends State<ActivityScreen> {
                   'Waktu',
                   ['Hari Ini', 'Minggu Ini', 'Bulan Ini'],
                   timeFilter,
-                  (value) => setSheetState(() => timeFilter = value),
+                      (value) => setSheetState(() => timeFilter = value),
                 ),
                 _sheetCategory(
                   'Status',
                   ['Aman', 'Waspada', 'Bahaya'],
                   statusFilter == null ? null : _statusLabel(statusFilter!),
-                  (value) => setSheetState(
-                    () => statusFilter = _statusFromLabel(value),
+                      (value) => setSheetState(
+                        () => statusFilter = _statusFromLabel(value),
                   ),
                 ),
                 _sheetCategory(
                   'Masalah Nutrisi',
                   ['Gula Tinggi', 'Natrium Tinggi', 'Pengawet Sintetis'],
                   nutritionFilter,
-                  (value) => setSheetState(() => nutritionFilter = value),
+                      (value) => setSheetState(() => nutritionFilter = value),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -479,11 +406,11 @@ class _ActivityScreenState extends State<ActivityScreen> {
   }
 
   Widget _sheetCategory(
-    String title,
-    List<String> options,
-    String? selected,
-    ValueChanged<String> onSelected,
-  ) {
+      String title,
+      List<String> options,
+      String? selected,
+      ValueChanged<String> onSelected,
+      ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
@@ -497,11 +424,11 @@ class _ActivityScreenState extends State<ActivityScreen> {
             children: options
                 .map(
                   (option) => _FilterChip(
-                    label: option,
-                    selected: selected == option,
-                    onTap: () => onSelected(option),
-                  ),
-                )
+                label: option,
+                selected: selected == option,
+                onTap: () => onSelected(option),
+              ),
+            )
                 .toList(),
           ),
         ],
@@ -522,10 +449,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
   };
 
   TextStyle _text(
-    double size,
-    FontWeight weight, [
-    Color color = AppColors.textPrimary,
-  ]) => GoogleFonts.plusJakartaSans(
+      double size,
+      FontWeight weight, [
+        Color color = AppColors.textPrimary,
+      ]) => GoogleFonts.plusJakartaSans(
     fontSize: size,
     fontWeight: weight,
     color: color,
