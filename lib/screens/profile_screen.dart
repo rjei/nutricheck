@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
+import '../widgets/app_header.dart';
 import 'login_screen.dart';
+import 'notification_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -20,28 +22,16 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu_rounded, color: primaryGreen),
-          onPressed: () {},
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Center(
-              child: Text(
-                'Nutricheck',
-                style: GoogleFonts.comfortaa(
-                  color: primaryGreen,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-              ),
+      // Mengganti AppBar lama dengan AppHeader terpusat
+      appBar: AppHeader(
+        onNotificationTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const NotificationScreen(),
             ),
-          ),
-        ],
+          );
+        },
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -324,7 +314,7 @@ class ProfileScreen extends StatelessWidget {
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (context) => const LoginScreen()),
-                        (route) => false,
+                            (route) => false,
                       );
                     },
                   ),
@@ -436,10 +426,10 @@ class ProfileScreen extends StatelessWidget {
           trailing: titleColor == const Color(0xFFD9383A)
               ? null
               : const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Colors.grey,
-                  size: 20,
-                ),
+            Icons.chevron_right_rounded,
+            color: Colors.grey,
+            size: 20,
+          ),
           onTap: onTap,
         ),
         if (!isLast)

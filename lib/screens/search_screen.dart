@@ -9,20 +9,15 @@ import '../data/models/additive.dart';
 import '../data/models/product.dart';
 import '../data/repositories/additive_repository.dart';
 import '../data/repositories/product_repository.dart';
+import '../models/search_category.dart';
 import '../widgets/additive_card.dart';
+import '../widgets/app_header.dart';
+import '../widgets/info_box.dart';
+import '../widgets/message_panel.dart';
 import '../widgets/product_card.dart';
 import '../widgets/search_filter_panel.dart';
 import '../widgets/searchbar.dart';
-import 'notification_screen.dart';
 import 'product_detail_screen.dart';
-
-class _SearchCategory {
-  const _SearchCategory(this.label, {this.tag, this.isAdditive = false});
-
-  final String label;
-  final String? tag;
-  final bool isAdditive;
-}
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({
@@ -45,17 +40,17 @@ class _SearchScreenState extends State<SearchScreen> {
   String _searchQuery = '';
   Timer? _debounce;
 
-  static const List<_SearchCategory> _categories = [
-    _SearchCategory('Semua'),
-    _SearchCategory('Minuman', tag: 'en:beverages'),
-    _SearchCategory('Snack', tag: 'en:snacks'),
-    _SearchCategory('Susu & Olahan', tag: 'en:dairies'),
-    _SearchCategory('Bumbu Dapur', tag: 'en:condiments'),
-    _SearchCategory('Mi Instan', tag: 'en:instant-noodles'),
-    _SearchCategory('Zat Aditif', isAdditive: true),
+  static const List<SearchCategory> _categories = [
+    SearchCategory('Semua'),
+    SearchCategory('Minuman', tag: 'en:beverages'),
+    SearchCategory('Snack', tag: 'en:snacks'),
+    SearchCategory('Susu & Olahan', tag: 'en:dairies'),
+    SearchCategory('Bumbu Dapur', tag: 'en:condiments'),
+    SearchCategory('Mi Instan', tag: 'en:instant-noodles'),
+    SearchCategory('Zat Aditif', isAdditive: true),
   ];
 
-  _SearchCategory _selectedCategory = _categories.first;
+  SearchCategory _selectedCategory = _categories.first;
 
   // State Filter
   bool _isAdvancedFilterOpen = false;
@@ -112,7 +107,7 @@ class _SearchScreenState extends State<SearchScreen> {
     _refresh();
   }
 
-  void _selectCategory(_SearchCategory category) {
+  void _selectCategory(SearchCategory category) {
     if (identical(category, _selectedCategory)) return;
     _debounce?.cancel();
     setState(() => _selectedCategory = category);
@@ -339,7 +334,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: _InfoBox(
+                        child: InfoBox(
                           label: 'KODE / ADITIF',
                           value: additive.eNumber ?? 'Tanpa kode E',
                           valueColor: const Color(0xFF0F5132),
@@ -347,7 +342,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _InfoBox(
+                        child: InfoBox(
                           label: 'BATAS HARIAN (ADI)',
                           value: adiText,
                           valueColor: risk.color,
@@ -405,34 +400,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FB),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'nutricheck',
-          style: GoogleFonts.comfortaa(
-            color: const Color(0xFF0F5132),
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline_rounded, color: Colors.grey),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: Colors.grey),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationScreen(),
-                ),
-              );
-            },
-          ),
-        ],
+      appBar: const AppHeader(
+        showDefaultActions: true,
       ),
       body: CustomScrollView(
         slivers: [
@@ -612,7 +581,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (_errorMessage != null) {
       return [
         SliverToBoxAdapter(
-          child: _MessagePanel(
+          child: MessagePanel(
             icon: Icons.cloud_off_rounded,
             title: 'Tidak dapat memuat data',
             message: _errorMessage!,
@@ -627,7 +596,7 @@ class _SearchScreenState extends State<SearchScreen> {
       if (_additiveResults.isEmpty) {
         return const [
           SliverToBoxAdapter(
-            child: _MessagePanel(
+            child: MessagePanel(
               icon: Icons.search_off_rounded,
               title: 'Tidak ada aditif ditemukan',
               message: 'Coba kata kunci lain seperti "E211", "micin", atau "pemanis".',
@@ -670,7 +639,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (_products.isEmpty) {
       return const [
         SliverToBoxAdapter(
-          child: _MessagePanel(
+          child: MessagePanel(
             icon: Icons.search_off_rounded,
             title: 'Tidak ada produk ditemukan',
             message: 'Tidak ada produk Indonesia yang cocok. Coba kata kunci lain '
@@ -717,118 +686,5 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       ),
     ];
-  }
-}
-
-class _InfoBox extends StatelessWidget {
-  const _InfoBox({
-    required this.label,
-    required this.value,
-    required this.valueColor,
-  });
-
-  final String label;
-  final String value;
-  final Color valueColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: valueColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MessagePanel extends StatelessWidget {
-  const _MessagePanel({
-    required this.icon,
-    required this.title,
-    required this.message,
-    this.actionLabel,
-    this.onAction,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-      alignment: Alignment.center,
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.comfortaa(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF191C1E),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              color: Colors.grey[600],
-            ),
-          ),
-          if (actionLabel != null) ...[
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: onAction,
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: Text(
-                actionLabel!,
-                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF0F5132),
-                side: const BorderSide(color: Color(0xFFD1E7DD)),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
   }
 }

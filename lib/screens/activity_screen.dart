@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../constants/app_colors.dart';
 import '../models/activity_product.dart';
 import '../data/models/product.dart';
+import '../widgets/app_header.dart'; // Menggunakan AppHeader terpusat
 import '../widgets/searchbar.dart';
 import 'product_detail_screen.dart';
 
@@ -184,6 +187,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: const AppHeader(
+        showDefaultActions: true,
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -233,7 +239,6 @@ class _ActivityScreenState extends State<ActivityScreen> {
       children: [
         Text('Aktivitas', style: _text(23, FontWeight.w700)),
         const SizedBox(height: 12),
-        // Menggunakan CustomSearchBar terpisah tanpa mengubah logika aslinya
         CustomSearchBar(
           controller: _searchController,
           onChanged: (_) => setState(() {}),

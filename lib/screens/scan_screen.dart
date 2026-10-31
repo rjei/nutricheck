@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'notification_screen.dart';
+import '../widgets/app_header.dart'; // Menggunakan AppHeader terpusat
 import '../widgets/scan_result_sheet.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -141,39 +141,6 @@ class _ScanScreenState extends State<ScanScreen>
     _scanAnimationController.dispose();
     _scannerController.dispose();
     super.dispose();
-  }
-
-  PreferredSizeWidget _buildHeader() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      title: Text(
-        'nutricheck',
-        style: GoogleFonts.comfortaa(
-          color: _primaryGreen,
-          fontWeight: FontWeight.bold,
-          fontSize: 22,
-        ),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.help_outline_rounded, color: Colors.grey),
-          onPressed: () {},
-        ),
-        IconButton(
-          icon: const Icon(Icons.notifications_none_rounded, color: Colors.grey),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const NotificationScreen(),
-              ),
-            );
-          },
-        ),
-      ],
-    );
   }
 
   Widget _buildPermissionDenied() {
@@ -324,7 +291,7 @@ class _ScanScreenState extends State<ScanScreen>
               child: Center(
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                  const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
                   decoration: BoxDecoration(
                     color: const Color(0xCC191C1E),
                     borderRadius: BorderRadius.circular(999),
@@ -459,14 +426,14 @@ class _ScanScreenState extends State<ScanScreen>
                 number: '1',
                 title: 'Cari Barcode',
                 description:
-                    'Temukan kode batang di sisi atau belakang kemasan produk.',
+                'Temukan kode batang di sisi atau belakang kemasan produk.',
               ),
               const SizedBox(height: 12),
               _buildStepCard(
                 number: '2',
                 title: 'Sejajarkan',
                 description:
-                    'Pastikan kode berada di tengah bingkai dan tidak goyang.',
+                'Pastikan kode berada di tengah bingkai dan tidak goyang.',
               ),
               const SizedBox(height: 16),
               Container(
@@ -522,7 +489,9 @@ class _ScanScreenState extends State<ScanScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: _buildHeader(),
+      appBar: const AppHeader(
+        showDefaultActions: true,
+      ),
       body: Column(
         children: [
           _buildScannerArea(),
