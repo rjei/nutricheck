@@ -5,7 +5,10 @@ import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Inisialisasi basis data akun dan sesi lokal
+  await AuthService().initialize();
   runApp(const NutriCheckApp());
 }
 
