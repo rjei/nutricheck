@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import '../models/activity_product.dart';
 import '../data/models/product.dart';
-import '../widgets/app_header.dart'; // Menggunakan AppHeader terpusat
+import '../widgets/app_header.dart';
 import '../widgets/searchbar.dart';
 import 'product_detail_screen.dart';
 

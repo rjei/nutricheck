@@ -32,6 +32,6 @@ abstract class ProductDataSource {
     String query, {
     String? categoryTag,
     int page = 1,
-    int pageSize = 20,
+    int pageSize = 40,
   });
 }

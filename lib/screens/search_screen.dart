@@ -33,10 +33,12 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
-  static const Duration _debounceDuration = Duration(milliseconds: 500);
+class _SearchScreenState extends State<SearchScreen>
+    with AutomaticKeepAliveClientMixin<SearchScreen> {
+  static const Duration _debounceDuration = Duration(milliseconds: 250);
 
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String _searchQuery = '';
   Timer? _debounce;
 
@@ -52,10 +54,9 @@ class _SearchScreenState extends State<SearchScreen> {
 
   SearchCategory _selectedCategory = _categories.first;
 
-  // State Filter
   bool _isAdvancedFilterOpen = false;
-  String? _selectedNutriScore; // 'a', 'b', 'c', 'd', 'e'
-  String? _selectedNutritionFilter; // 'Gula Tinggi', 'Natrium Tinggi'
+  String? _selectedNutriScore;
+  String? _selectedNutritionFilter;
 
   List<Product> _products = [];
   int _totalCount = 0;
@@ -63,7 +64,11 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _hasMore = false;
   bool _isLoading = false;
   bool _isLoadingMore = false;
+  bool _isBackgroundLoading = false;
   String? _errorMessage;
+
+  @override
+  bool get wantKeepAlive => true;
 
   List<Additive> _additiveResults = [];
   int _requestId = 0;
@@ -76,21 +81,34 @@ class _SearchScreenState extends State<SearchScreen> {
 
   bool get _isAdditiveMode =>
       _selectedCategory.isAdditive ||
-          (_selectedCategory.tag == null &&
-              AdditiveRepository.normalizeCode(_searchQuery) != null);
+      (_selectedCategory.tag == null &&
+          AdditiveRepository.normalizeCode(_searchQuery) != null);
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _searchController.addListener(_onQueryChanged);
     _refresh();
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients &&
+        _scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 350) {
+      if (!_isLoadingMore && _hasMore && !_isLoading && !_isAdditiveMode) {
+        _loadMore();
+      }
+    }
   }
 
   void _onQueryChanged() {
@@ -110,8 +128,38 @@ class _SearchScreenState extends State<SearchScreen> {
   void _selectCategory(SearchCategory category) {
     if (identical(category, _selectedCategory)) return;
     _debounce?.cancel();
-    setState(() => _selectedCategory = category);
+    setState(() {
+      _selectedCategory = category;
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+      }
+    });
     _refresh();
+  }
+
+  List<Product> _filterProducts(List<Product> source, String query) {
+    return source.where((p) {
+      if (query.isEmpty) {
+        if (p.nutriscoreGrade == null || p.nutriscoreGrade!.isEmpty) {
+          return false;
+        }
+      }
+
+      if (_selectedNutriScore != null) {
+        final grade = p.nutriscoreGrade?.toLowerCase();
+        if (grade != _selectedNutriScore) return false;
+      }
+
+      if (_selectedNutritionFilter == 'Gula Tinggi') {
+        final sugar = p.nutrition.sugarsG ?? 0;
+        if (sugar < 22.5) return false;
+      }
+      if (_selectedNutritionFilter == 'Natrium Tinggi') {
+        final sodium = p.nutrition.sodiumMg ?? 0;
+        if (sodium < 600) return false;
+      }
+      return true;
+    }).toList();
   }
 
   Future<void> _refresh() async {
@@ -138,53 +186,131 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    final cachedCatalog = _productRepository.getCachedCatalog(_selectedCategory.tag);
+    if (query.isEmpty && cachedCatalog != null && cachedCatalog.isNotEmpty) {
+      final filteredCached = _filterProducts(cachedCatalog, query);
+      setState(() {
+        _products = filteredCached;
+        _totalCount = filteredCached.length;
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    } else {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final result = await _productRepository.search(
         query,
         categoryTag: _selectedCategory.tag,
+        pageSize: 40,
       );
       if (!mounted || requestId != _requestId) return;
 
-      final filteredProducts = result.products.where((p) {
-        if (_selectedNutriScore != null) {
-          final grade = p.nutriscoreGrade?.toLowerCase();
-          if (grade != _selectedNutriScore) return false;
-        }
+      var page = result.page;
+      var hasMore = result.hasMore;
+      var candidateProducts = List<Product>.from(result.products);
 
-        if (_selectedNutritionFilter == 'Gula Tinggi') {
-          final sugar = p.nutrition.sugarsG ?? 0;
-          if (sugar < 22.5) return false;
-        }
-        if (_selectedNutritionFilter == 'Natrium Tinggi') {
-          final sodium = p.nutrition.sodiumMg ?? 0;
-          if (sodium < 600) return false;
-        }
-        return true;
-      }).toList();
+      if (query.isEmpty) {
+        candidateProducts = candidateProducts
+            .where((p) => p.nutriscoreGrade != null && p.nutriscoreGrade!.isNotEmpty)
+            .toList();
+      }
+
+      final filteredProducts = _filterProducts(candidateProducts, query);
 
       setState(() {
         _products = filteredProducts;
         _totalCount = filteredProducts.length;
-        _page = result.page;
-        _hasMore = result.hasMore;
+        _page = page;
+        _hasMore = hasMore;
         _isLoading = false;
       });
+
+      if (query.isEmpty) {
+        _productRepository.setCachedCatalog(_selectedCategory.tag, candidateProducts);
+        if (hasMore) {
+          _loadBackgroundProducts(requestId, page, hasMore, candidateProducts);
+        }
+      }
     } catch (e) {
       if (!mounted || requestId != _requestId) return;
-      setState(() {
-        _products = [];
-        _totalCount = 0;
-        _hasMore = false;
-        _isLoading = false;
-        _errorMessage = e is ProductSourceException
-            ? e.message
-            : 'Terjadi kesalahan saat mencari produk.';
-      });
+      if (_products.isEmpty) {
+        setState(() {
+          _products = [];
+          _totalCount = 0;
+          _hasMore = false;
+          _isLoading = false;
+          _errorMessage = e is ProductSourceException
+              ? e.message
+              : 'Terjadi kesalahan saat mencari produk.';
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadBackgroundProducts(
+    int requestId,
+    int startPage,
+    bool initialHasMore,
+    List<Product> initialProducts,
+  ) async {
+    if (_isBackgroundLoading) return;
+    setState(() => _isBackgroundLoading = true);
+
+    var currentPage = startPage;
+    var hasMore = initialHasMore;
+    final accumulated = List<Product>.from(initialProducts);
+    final known = accumulated.map((p) => p.barcode).toSet();
+
+    try {
+      while (hasMore && currentPage < startPage + 4 && accumulated.length < 80) {
+        final nextPage = currentPage + 1;
+        final nextResult = await _productRepository.search(
+          '',
+          categoryTag: _selectedCategory.tag,
+          page: nextPage,
+          pageSize: 40,
+        );
+        if (requestId != _requestId) break;
+
+        currentPage = nextResult.page;
+        hasMore = nextResult.hasMore;
+
+        var addedCount = 0;
+        for (final p in nextResult.products) {
+          if (p.nutriscoreGrade != null &&
+              p.nutriscoreGrade!.isNotEmpty &&
+              known.add(p.barcode)) {
+            accumulated.add(p);
+            addedCount++;
+          }
+        }
+
+        _productRepository.setCachedCatalog(_selectedCategory.tag, accumulated);
+
+        if (mounted && requestId == _requestId && addedCount > 0) {
+          final filtered = _filterProducts(accumulated, '');
+          setState(() {
+            _products = filtered;
+            _totalCount = filtered.length;
+            _page = currentPage;
+            _hasMore = hasMore;
+          });
+        }
+
+        if (nextResult.products.isEmpty || !hasMore) break;
+      }
+    } catch (_) {
+    } finally {
+      if (mounted && requestId == _requestId) {
+        setState(() => _isBackgroundLoading = false);
+      }
     }
   }
 
@@ -194,41 +320,55 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() => _isLoadingMore = true);
 
     try {
-      final result = await _productRepository.search(
-        _searchQuery.trim(),
-        categoryTag: _selectedCategory.tag,
-        page: _page + 1,
-      );
-      if (!mounted || requestId != _requestId) return;
+      final isNoQuery = _searchQuery.trim().isEmpty;
+      var nextPage = _page + 1;
+      var hasMore = _hasMore;
       final known = _products.map((p) => p.barcode).toSet();
+      final moreFiltered = <Product>[];
 
-      final moreFiltered = result.products.where((p) {
-        if (_selectedNutriScore != null) {
-          final grade = p.nutriscoreGrade?.toLowerCase();
-          if (grade != _selectedNutriScore) return false;
+      while (moreFiltered.isEmpty && hasMore) {
+        final result = await _productRepository.search(
+          _searchQuery.trim(),
+          categoryTag: _selectedCategory.tag,
+          page: nextPage,
+          pageSize: 40,
+        );
+        if (!mounted || requestId != _requestId) return;
+
+        nextPage = result.page;
+        hasMore = result.hasMore;
+
+        final batch = _filterProducts(result.products, _searchQuery.trim())
+            .where((p) => known.add(p.barcode));
+
+        moreFiltered.addAll(batch);
+
+        if (!isNoQuery || moreFiltered.isNotEmpty || !hasMore || nextPage >= _page + 4) {
+          break;
         }
-        if (_selectedNutritionFilter == 'Gula Tinggi') {
-          if ((p.nutrition.sugarsG ?? 0) < 22.5) return false;
-        }
-        if (_selectedNutritionFilter == 'Natrium Tinggi') {
-          if ((p.nutrition.sodiumMg ?? 0) < 600) return false;
-        }
-        return true;
-      }).where((p) => !known.contains(p.barcode));
+        nextPage++;
+      }
 
       setState(() {
         _products = [..._products, ...moreFiltered];
-        _page = result.page;
-        _hasMore = result.hasMore;
+        _totalCount = _products.length;
+        _page = nextPage;
+        _hasMore = hasMore;
         _isLoadingMore = false;
       });
+
+      if (isNoQuery) {
+        _productRepository.setCachedCatalog(_selectedCategory.tag, _products);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoadingMore = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            e is ProductSourceException ? e.message : 'Gagal memuat produk berikutnya.',
+            e is ProductSourceException
+                ? e.message
+                : 'Gagal memuat produk berikutnya.',
           ),
         ),
       );
@@ -312,7 +452,8 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: risk.backgroundColor,
                           borderRadius: BorderRadius.circular(20),
@@ -395,6 +536,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final additiveMode = _isAdditiveMode;
     final resultCount = additiveMode ? _additiveResults.length : _totalCount;
 
@@ -404,10 +546,12 @@ class _SearchScreenState extends State<SearchScreen> {
         showDefaultActions: true,
       ),
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -420,7 +564,8 @@ class _SearchScreenState extends State<SearchScreen> {
                           onSubmitted: _onSearchSubmitted,
                           onClear: () {
                             _searchController.clear();
-                            setState(() {});
+                            _debounce?.cancel();
+                            _refresh();
                           },
                           hintText: 'Cari produk, merek, aditif (E-Code)...',
                           showTrailingFilter: false,
@@ -430,10 +575,10 @@ class _SearchScreenState extends State<SearchScreen> {
                       Container(
                         width: 48,
                         height: 48,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
                               color: Color(0x0C000000),
                               blurRadius: 4,
@@ -442,7 +587,8 @@ class _SearchScreenState extends State<SearchScreen> {
                           ],
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.tune_rounded, color: Color(0xFF0F5132)),
+                          icon: const Icon(Icons.tune_rounded,
+                              color: Color(0xFF0F5132)),
                           onPressed: () {
                             setState(() {
                               _isAdvancedFilterOpen = !_isAdvancedFilterOpen;
@@ -452,8 +598,6 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                     ],
                   ),
-
-                  // Panel Filter Ekspansif Menggunakan Widget Terpisah
                   AnimatedCrossFade(
                     firstChild: const SizedBox.shrink(),
                     secondChild: SearchFilterPanel(
@@ -480,24 +624,27 @@ class _SearchScreenState extends State<SearchScreen> {
                         : CrossFadeState.showFirst,
                     duration: const Duration(milliseconds: 250),
                   ),
-
                   const SizedBox(height: 16),
-
                   SizedBox(
                     height: 38,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _categories.length,
-                      separatorBuilder: (context, index) => const SizedBox(width: 8),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(width: 8),
                       itemBuilder: (context, index) {
                         final category = _categories[index];
-                        final isSelected = identical(_selectedCategory, category);
+                        final isSelected =
+                            identical(_selectedCategory, category);
                         return GestureDetector(
                           onTap: () => _selectCategory(category),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFF0F5132) : Colors.white,
+                              color: isSelected
+                                  ? const Color(0xFF0F5132)
+                                  : Colors.white,
                               borderRadius: BorderRadius.circular(9999),
                               boxShadow: const [
                                 BoxShadow(
@@ -510,7 +657,9 @@ class _SearchScreenState extends State<SearchScreen> {
                             child: Text(
                               category.label,
                               style: GoogleFonts.plusJakartaSans(
-                                color: isSelected ? Colors.white : const Color(0xFF3D4947),
+                                color: isSelected
+                                    ? Colors.white
+                                    : const Color(0xFF3D4947),
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -521,7 +670,6 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -534,7 +682,9 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                       ),
                       Text(
-                        additiveMode ? '$resultCount Aditif' : '$resultCount Produk',
+                        additiveMode
+                            ? '$resultCount Aditif'
+                            : '$resultCount Produk',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           color: Colors.grey[600],
@@ -547,14 +697,16 @@ class _SearchScreenState extends State<SearchScreen> {
                   Text(
                     additiveMode
                         ? 'Basis data zat aditif lokal (BPOM & JECFA)'
-                        : 'Hanya produk yang beredar di Indonesia • Data: Open Food Facts',
+                        : (_searchQuery.trim().isEmpty
+                            ? 'Hanya produk yang beredar di Indonesia dengan Nutri-Score • Data: Open Food Facts'
+                            : 'Hanya produk yang beredar di Indonesia • Data: Open Food Facts'),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       color: Colors.grey[600],
                     ),
                   ),
                   const SizedBox(height: 8),
-                  if (_isLoading && _products.isNotEmpty && !additiveMode)
+                  if ((_isLoading || _isBackgroundLoading) && _products.isNotEmpty && !additiveMode)
                     const Padding(
                       padding: EdgeInsets.only(bottom: 4),
                       child: LinearProgressIndicator(
@@ -567,7 +719,6 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
           ),
-
           ..._buildResults(additiveMode),
           const SliverToBoxAdapter(
             child: SizedBox(height: 30),
@@ -599,7 +750,8 @@ class _SearchScreenState extends State<SearchScreen> {
             child: MessagePanel(
               icon: Icons.search_off_rounded,
               title: 'Tidak ada aditif ditemukan',
-              message: 'Coba kata kunci lain seperti "E211", "micin", atau "pemanis".',
+              message:
+                  'Coba kata kunci lain seperti "E211", "micin", atau "pemanis".',
             ),
           ),
         ];
@@ -609,7 +761,7 @@ class _SearchScreenState extends State<SearchScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
-                  (context, index) {
+              (context, index) {
                 final additive = _additiveResults[index];
                 return AdditiveCard(
                   additive: additive,
@@ -637,13 +789,18 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     if (_products.isEmpty) {
-      return const [
+      final isNoQuery = _searchQuery.trim().isEmpty;
+      return [
         SliverToBoxAdapter(
           child: MessagePanel(
             icon: Icons.search_off_rounded,
-            title: 'Tidak ada produk ditemukan',
-            message: 'Tidak ada produk Indonesia yang cocok. Coba kata kunci lain '
-                'seperti "indomie", "teh botol", atau "kecap".',
+            title: isNoQuery
+                ? 'Tidak ada produk ber-Nutri-Score'
+                : 'Tidak ada produk ditemukan',
+            message: isNoQuery
+                ? 'Belum ada produk beredar di Indonesia dengan Nutri-Score dalam kategori ini. Coba pilih kategori lain atau gunakan pencarian manual.'
+                : 'Tidak ada produk Indonesia yang cocok. Coba kata kunci lain '
+                    'seperti "indomie", "teh botol", atau "kecap".',
           ),
         ),
       ];
@@ -654,24 +811,42 @@ class _SearchScreenState extends State<SearchScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
-                (context, index) {
+            (context, index) {
               if (index == _products.length) {
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Center(
                     child: _isLoadingMore
-                        ? const CircularProgressIndicator(color: Color(0xFF0F5132))
-                        : OutlinedButton(
-                      onPressed: _loadMore,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF0F5132),
-                        side: const BorderSide(color: Color(0xFFD1E7DD)),
-                      ),
-                      child: Text(
-                        'Muat Lebih Banyak',
-                        style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Color(0xFF0F5132),
+                            ),
+                          )
+                        : _hasMore
+                            ? OutlinedButton(
+                                onPressed: _loadMore,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF0F5132),
+                                  side: const BorderSide(
+                                      color: Color(0xFFD1E7DD)),
+                                ),
+                                child: Text(
+                                  'Muat Lebih Banyak',
+                                  style: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              )
+                            : Text(
+                                'Semua produk telah ditampilkan',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                   ),
                 );
               }

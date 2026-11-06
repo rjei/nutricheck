@@ -18,6 +18,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  final Set<int> _loadedTabs = {0};
 
   Widget _buildHomeContent() {
     return Scaffold(
@@ -43,29 +44,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Widget activePage;
-    switch (_currentIndex) {
-      case 0:
-        activePage = _buildHomeContent();
-        break;
-      case 1:
-        activePage = const SearchScreen();
-        break;
-      case 2:
-        activePage = const ScanScreen();
-        break;
-      case 3:
-        activePage = const ActivityScreen();
-        break;
-      case 4:
-        activePage = const ProfileScreen();
-        break;
-      default:
-        activePage = _buildHomeContent();
-    }
+    _loadedTabs.add(_currentIndex);
 
     return Scaffold(
-      body: activePage,
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          _buildHomeContent(),
+          _loadedTabs.contains(1) ? const SearchScreen() : const SizedBox.shrink(),
+          _currentIndex == 2 ? const ScanScreen() : const SizedBox.shrink(),
+          _loadedTabs.contains(3) ? const ActivityScreen() : const SizedBox.shrink(),
+          _loadedTabs.contains(4) ? const ProfileScreen() : const SizedBox.shrink(),
+        ],
+      ),
       bottomNavigationBar: AppFooter(
         currentIndex: _currentIndex,
         onTap: (index) {

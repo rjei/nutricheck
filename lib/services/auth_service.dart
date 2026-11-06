@@ -10,7 +10,6 @@ import '../models/user_model.dart';
 /// namun kini datanya tersimpan persisten ke basis data lokal ([LocalAuthDataSource])
 /// dan siap dihubungkan ke Firebase ([FirebaseAuthDataSource]) di masa depan.
 class AuthService extends ChangeNotifier {
-  // Singleton pattern
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   AuthService._internal() {
@@ -19,7 +18,6 @@ class AuthService extends ChangeNotifier {
 
   final AuthRepository _repository = AuthRepository.instance;
 
-  // Cache lokal in-memory untuk akses sinkron cepat di UI
   final List<UserModel> _users = [];
   UserModel? _currentUser;
   bool _initialized = false;
@@ -43,7 +41,6 @@ class AuthService extends ChangeNotifier {
       _initialized = true;
       notifyListeners();
     } catch (_) {
-      // Fallback aman bila platform storage belum siap
     }
   }
 
@@ -63,7 +60,6 @@ class AuthService extends ChangeNotifier {
 
     if (userIndex != -1) {
       _currentUser = _users[userIndex];
-      // Persistensikan sesi ke repository di latar belakang
       _repository.login(email: cleanEmail, password: password);
       notifyListeners();
       return true;
@@ -96,7 +92,6 @@ class AuthService extends ChangeNotifier {
   }) {
     final cleanEmail = email.trim().toLowerCase();
 
-    // Jika email sudah ada di cache lokal, login dengan user tersebut
     final existingIndex =
         _users.indexWhere((u) => u.email.toLowerCase() == cleanEmail);
     if (existingIndex != -1) {
@@ -121,7 +116,6 @@ class AuthService extends ChangeNotifier {
     _users.add(newUser);
     _currentUser = newUser;
 
-    // Simpan persisten ke repository lokal di latar belakang
     _repository.register(
       fullName: fullName,
       email: email,
@@ -141,13 +135,11 @@ class AuthService extends ChangeNotifier {
       _currentUser!.selectedConditions = List.from(conditions);
       _currentUser!.primaryGoal = primaryGoal;
 
-      // Update di cache list
       final idx = _users.indexWhere((u) => u.id == _currentUser!.id);
       if (idx != -1) {
         _users[idx] = _currentUser!;
       }
 
-      // Simpan persisten
       _repository.updateHealthSurvey(
         conditions: conditions,
         primaryGoal: primaryGoal,

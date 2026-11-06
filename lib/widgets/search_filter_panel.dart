@@ -51,16 +51,14 @@ class SearchFilterPanel extends StatelessWidget {
             children: ['a', 'b', 'c', 'd', 'e'].map((grade) {
               final isSelected = selectedNutriScore == grade;
               return ChoiceChip(
-                // Label tampil bersih tanpa ikon centang (✓)
                 label: Text(grade.toUpperCase()),
                 selected: isSelected,
                 onSelected: (selected) {
                   onNutriScoreSelected(selected ? grade : null);
                 },
-                // Warna latar belakang saat aktif menjadi hijau penuh
                 selectedColor: const Color(0xFF0F5132),
                 backgroundColor: Colors.grey.shade100,
-                showCheckmark: false, // Menghilangkan ikon centang bawaan Flutter
+                showCheckmark: false,
                 labelStyle: TextStyle(
                   color: isSelected ? Colors.white : Colors.black87,
                   fontWeight: FontWeight.bold,
@@ -91,7 +89,7 @@ class SearchFilterPanel extends StatelessWidget {
                 },
                 selectedColor: const Color(0xFF0F5132),
                 backgroundColor: Colors.grey.shade100,
-                showCheckmark: false, // Menghilangkan ikon centang bawaan Flutter
+                showCheckmark: false,
                 labelStyle: TextStyle(
                   color: isSelected ? Colors.white : Colors.black87,
                   fontWeight: FontWeight.bold,

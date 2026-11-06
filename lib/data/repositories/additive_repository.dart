@@ -49,7 +49,7 @@ class AdditiveRepository {
         ..addEntries(_additives.map((a) => MapEntry(a.id.toLowerCase(), a)));
       _version = dataset.version;
     } catch (_) {
-      _loading = null; // izinkan percobaan ulang
+      _loading = null;
       rethrow;
     }
   }
