@@ -5,9 +5,9 @@ import '../constants/app_colors.dart';
 /// Reusable Bottom Navigation Bar Component for NutriCheck
 /// Tab Order:
 /// 0: Beranda
-/// 1: Cari
+/// 1: Telusuri
 /// 2: Scan (Tombol Utama Tengah)
-/// 3: Aktivitas
+/// 3: Riwayat
 /// 4: Profil (Paling Kanan)
 class AppFooter extends StatelessWidget {
   final int currentIndex;
@@ -55,7 +55,7 @@ class AppFooter extends StatelessWidget {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.search_rounded),
-            label: 'Cari',
+            label: 'Telusuri',
           ),
           BottomNavigationBarItem(
             icon: CircleAvatar(
@@ -71,7 +71,7 @@ class AppFooter extends StatelessWidget {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.history_rounded),
-            label: 'Aktivitas',
+            label: 'Riwayat',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline_rounded),
