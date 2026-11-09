@@ -30,7 +30,6 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
-  // Variabel diubah menjadi _isConsumed sesuai alur UX yang baru
   bool _isConsumed = false;
 
   late Product _product = widget.product;
@@ -92,7 +91,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         ),
         actions: [
-          // Ikon bookmark dan profil AI dihapus, hanya menyisakan tombol Share
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.ios_share_rounded, color: AppColors.textSecondary),
@@ -147,7 +145,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               SizedBox(
                 width: double.infinity,
                 height: 52,
-                // Tombol diubah menjadi ElevatedButton.icon untuk Status Konsumsi
                 child: ElevatedButton.icon(
                   onPressed: _toggleConsumed,
                   icon: Icon(
@@ -320,7 +317,6 @@ class _HeroProductCard extends StatelessWidget {
           _ProductVisual(imageUrl: product.imageUrl, isBeverage: product.hasCategory('en:beverages')),
           const SizedBox(height: 18),
 
-          // PERBAIKAN OVERFLOW: GridView diganti menjadi Row + Expanded
           Row(
             children: [
               Expanded(
@@ -888,7 +884,6 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      // Padding dikurangi sedikit agar teks panjang muat
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -913,7 +908,7 @@ class _MetricCard extends StatelessWidget {
               value,
               textAlign: TextAlign.center,
               style: _titleStyle(
-                fontSize: 20, // Ukuran teks value sedikit disesuaikan
+                fontSize: 20,
                 fontWeight: FontWeight.w800,
                 color: accent,
               ),
@@ -923,7 +918,7 @@ class _MetricCard extends StatelessWidget {
           Text(
             suffix,
             textAlign: TextAlign.center,
-            maxLines: 2, // Mencegah overflow dengan membatasi baris
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: _titleStyle(
               fontSize: 10,

@@ -44,7 +44,6 @@ class SharedPrefsProductCache implements ProductCache {
         }
       }
     } catch (_) {
-      // Cache rusak/tidak tersedia: mulai dari kosong, jangan ganggu aplikasi.
       entries.clear();
     }
     return _entries = entries;
@@ -73,7 +72,6 @@ class SharedPrefsProductCache implements ProductCache {
         jsonEncode(entries.map((k, v) => MapEntry(k, v.toJson()))),
       );
     } catch (_) {
-      // Gagal menyimpan tidak boleh menggagalkan lookup produk.
     }
   }
 }

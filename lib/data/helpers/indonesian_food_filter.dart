@@ -20,7 +20,6 @@ class IndonesianFoodFilter {
 
   /// Kategori Open Food Facts yang BUKAN makanan/minuman konsumsi manusia.
   static const Set<String> disallowedCategoryTags = {
-    // Pet food & perlengkapan hewan
     'en:pet-food',
     'en:cats-food',
     'en:dogs-food',
@@ -30,7 +29,6 @@ class IndonesianFoodFilter {
     'en:pets',
     'en:cat-treats',
     'en:dog-treats',
-    // Non-food & kosmetik
     'en:non-food-products',
     'en:open-beauty-facts',
     'en:open-products-facts',
@@ -39,16 +37,13 @@ class IndonesianFoodFilter {
     'en:hygiene',
     'en:body-care',
     'en:skin-care',
-    // Pembersih & rumah tangga
     'en:cleaning-products',
     'en:detergents',
     'en:household-supplies',
-    // Pertanian & kebun
     'en:fertilizers',
     'en:seeds',
     'en:gardening',
     'en:pesticides',
-    // Obat keras / medis non-pangan
     'en:medicines',
     'en:drugs',
     'en:medical',
@@ -111,7 +106,6 @@ class IndonesianFoodFilter {
 
   /// Kata kunci produk non-makanan manusia.
   static final List<RegExp> _nonFoodPatterns = [
-    // Pertanian & Kebun
     _boundaryPattern(r'pupuk'),
     _boundaryPattern(r'benih'),
     _boundaryPattern(r'bibit'),
@@ -126,7 +120,6 @@ class IndonesianFoodFilter {
     _boundaryPattern(r'rootone'),
     _boundaryPattern(r'fertilizer'),
     _boundaryPattern(r'hibrida\s+f1'),
-    // Pembersih, Antiseptik & Racun
     _boundaryPattern(r'sabun'),
     _boundaryPattern(r'shampo'),
     _boundaryPattern(r'shampoo'),
@@ -148,7 +141,6 @@ class IndonesianFoodFilter {
     _boundaryPattern(r'obat\s+nyamuk'),
     _boundaryPattern(r'k-othrine'),
     _boundaryPattern(r'cislin'),
-    // Kosmetik & Skincare
     _boundaryPattern(r'masker\s+wajah'),
     _boundaryPattern(r'facial\s+mask'),
     _boundaryPattern(r'neem\s+mask'),
@@ -162,13 +154,11 @@ class IndonesianFoodFilter {
     _boundaryPattern(r'deodorant'),
     _boundaryPattern(r'face\s+wash'),
     _boundaryPattern(r'facial\s+wash'),
-    // Obat Medis Kimia Bebas Terbatas
     _boundaryPattern(r'diapet'),
     _boundaryPattern(r'panadol'),
     _boundaryPattern(r'paracetamol'),
     _boundaryPattern(r'bodrex'),
     _boundaryPattern(r'xentium'),
-    // Lainnya
     _boundaryPattern(r'balloon\b'),
     _boundaryPattern(r'mainan\b'),
   ];
@@ -298,49 +288,39 @@ class IndonesianFoodFilter {
     List<String> categoryTags = const [],
     String? ingredientsText,
   }) {
-    // 1. Wajib memiliki tag negara Indonesia
     if (!countryTags.contains(indonesiaCountryTag)) return false;
 
-    // 2. Validasi nama produk (tidak boleh kosong atau nama sampah)
     final cleanName = name.trim();
     if (cleanName.length < 3 || !RegExp(r'[a-zA-Z]').hasMatch(cleanName)) {
       return false;
     }
 
-    // 3. Tolak kategori non-makanan atau pet-food
     for (final tag in categoryTags) {
       if (disallowedCategoryTags.contains(tag.toLowerCase())) {
         return false;
       }
     }
 
-    // 4. Periksa teks komprehensif (nama, brand, komposisi, kategori)
     final fullText = '$cleanName ${brand ?? ''} ${ingredientsText ?? ''} ${categoryTags.join(' ')}'
         .toLowerCase();
 
-    // 4a. Tolak makanan hewan peliharaan
     for (final pattern in _petFoodPatterns) {
       if (pattern.hasMatch(fullText)) return false;
     }
 
-    // 4b. Tolak produk non-makanan
     for (final pattern in _nonFoodPatterns) {
       if (pattern.hasMatch(fullText)) return false;
     }
 
-    // 5. Verifikasi Keaslian Produk Indonesia (Bukan Produk Luar Negeri)
     final cleanBarcode = barcode.replaceAll(RegExp(r'[\s-]'), '');
 
-    // 5a. Barcode GS1 Indonesia (899...) pasti produk Indonesia
     if (cleanBarcode.startsWith(gs1IndonesiaPrefix)) return true;
 
-    // 5b. Barcode Indofood global (089686... / 0089686...)
     if (cleanBarcode.startsWith(indofoodUpcPrefix) ||
         cleanBarcode.startsWith(indofoodGtinPrefix)) {
       return true;
     }
 
-    // 5c. Periksa apakah brand terdaftar sebagai brand pangan Indonesia
     final cleanBrand = (brand ?? '').trim().toLowerCase();
     for (final indoBrand in _knownIndonesianBrands) {
       if (cleanBrand.contains(indoBrand) || cleanName.toLowerCase().contains(indoBrand)) {
@@ -348,7 +328,6 @@ class IndonesianFoodFilter {
       }
     }
 
-    // 5d. Periksa kosakata pangan khas Indonesia di nama atau komposisi
     for (final vocab in _indonesianFoodVocabulary) {
       if (vocab.hasMatch(cleanName) ||
           (ingredientsText != null && vocab.hasMatch(ingredientsText))) {
@@ -356,8 +335,6 @@ class IndonesianFoodFilter {
       }
     }
 
-    // Jika barcode BUKAN 899, dan tidak punya kaitan brand atau bahasa Indonesia,
-    // maka produk ini adalah produk luar negeri yang salah ditandai di Open Food Facts.
     return false;
   }
 }

@@ -88,7 +88,7 @@ class OpenFoodFactsDataSource implements ProductDataSource {
     String query, {
     String? categoryTag,
     int page = 1,
-    int pageSize = 20,
+    int pageSize = 40,
   }) async {
     final uri = Uri.https(searchHost, '/search', {
       'q': buildSearchQuery(query, categoryTag: categoryTag),
@@ -105,8 +105,6 @@ class OpenFoodFactsDataSource implements ProductDataSource {
     for (final hit in hits) {
       if (hit is! Map) continue;
       final product = parseProduct(Map<String, dynamic>.from(hit), complete: false);
-      // Pemeriksaan ulang di klien: server sudah memfilter, tetapi invarian
-      // "hanya produk Indonesia" tidak boleh bergantung pada satu lapis saja.
       if (product != null && product.name.isNotEmpty && product.isSoldInIndonesia) {
         products.add(product);
       }
@@ -136,8 +134,6 @@ class OpenFoodFactsDataSource implements ProductDataSource {
       buffer.write(' AND categories_tags:"$category"');
     }
 
-    // Buang karakter spesial Lucene agar input pengguna tidak merusak query
-    // atau menyisipkan filter lain.
     final words = text
         .toLowerCase()
         .replaceAll(RegExp(r'[+\-&|!(){}\[\]^"~*?:\\/]'), ' ')
@@ -187,7 +183,6 @@ class OpenFoodFactsDataSource implements ProductDataSource {
       brand: brand,
       quantity: text(json['quantity']),
       imageUrl: text(json['image_front_url']) ?? text(json['image_front_small_url']),
-      // OFF menandai alergen dengan _garis bawah_; tidak relevan untuk tampilan.
       ingredientsText: ingredients?.replaceAll('_', ''),
       additiveCodes: parseAdditiveTags(stringList(json['additives_tags'])),
       categoryTags: stringList(json['categories_tags']),

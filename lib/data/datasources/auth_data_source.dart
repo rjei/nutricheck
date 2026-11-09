@@ -58,7 +58,6 @@ class LocalAuthDataSource implements AuthDataSource {
   final String sessionKey;
   SharedPreferences? _prefs;
 
-  // Cache in-memory untuk performa instan
   Map<String, UserModel>? _usersCache;
 
   /// Akun bawaan (seed data) untuk memastikan kompatibilitas testing & demo.
@@ -98,7 +97,6 @@ class LocalAuthDataSource implements AuthDataSource {
       users.clear();
     }
 
-    // Inisialisasi seed default jika database pengguna masih kosong
     if (users.isEmpty) {
       final seed = defaultSeedUser;
       users[seed.id] = seed;
@@ -114,7 +112,6 @@ class LocalAuthDataSource implements AuthDataSource {
       final payload = jsonEncode(users.map((k, v) => MapEntry(k, v.toJson())));
       await prefs.setString(storageKey, payload);
     } catch (_) {
-      // Kegagalan simpan tidak boleh melempar unhandled crash ke UI
     }
   }
 
@@ -168,7 +165,6 @@ class LocalAuthDataSource implements AuthDataSource {
     final cleanEmail = email.trim().toLowerCase();
     final users = await _loadUsers();
 
-    // Cek email yang sudah terdaftar
     for (final existing in users.values) {
       if (existing.email.toLowerCase() == cleanEmail) {
         await setActiveSession(existing.id);
@@ -230,14 +226,6 @@ class LocalAuthDataSource implements AuthDataSource {
 /// Siap digunakan saat dependensi `firebase_auth` & `cloud_firestore` ditambahkan.
 /// Memetakan user Firestore di koleksi `/users/{userId}`.
 class FirebaseAuthDataSource implements AuthDataSource {
-  // Catatan: Kelas ini disiapkan sebagai panduan implementasi cloud di masa depan.
-  // Saat fase Firebase dimulai:
-  // 1. Inisialisasi: FirebaseAuth.instance dan FirebaseFirestore.instance.
-  // 2. login() memanggil: FirebaseAuth.instance.signInWithEmailAndPassword(...)
-  //    lalu membaca dokumen: FirebaseFirestore.instance.collection('users').doc(uid).get()
-  // 3. register() memanggil: FirebaseAuth.instance.createUserWithEmailAndPassword(...)
-  //    lalu menulis dokumen awal: usersRef.doc(uid).set(user.toJson())
-  // 4. updateUser() memanggil: usersRef.doc(user.id).update(user.toJson())
 
   @override
   Future<UserModel?> getActiveSession() async {

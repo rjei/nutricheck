@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../widgets/app_header.dart'; // Menggunakan AppHeader terpusat
+import '../widgets/app_header.dart';
 import '../widgets/scan_result_sheet.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -57,7 +57,6 @@ class _ScanScreenState extends State<ScanScreen>
       _permissionDenied = false;
     });
 
-    // Tampilkan MobileScanner dulu agar controller terpasang.
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted) return;
 

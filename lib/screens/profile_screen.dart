@@ -22,7 +22,6 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
-      // Mengganti AppBar lama dengan AppHeader terpusat
       appBar: AppHeader(
         onNotificationTap: () {
           Navigator.push(
@@ -38,7 +37,6 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // User Header Profile Card
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
@@ -55,7 +53,6 @@ class ProfileScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  // Avatar with Green Border Ring & Edit Badge
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
@@ -105,7 +102,6 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Badges Row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -170,7 +166,6 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Preferensi Diet & Alergi Section
             Text(
               'Preferensi Diet & Alergi',
               style: GoogleFonts.plusJakartaSans(
@@ -181,7 +176,6 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Condition Chips
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -214,7 +208,6 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Riwayat Favorit Section
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -269,7 +262,6 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Pengaturan Akun Section
             Text(
               'Pengaturan Akun',
               style: GoogleFonts.plusJakartaSans(

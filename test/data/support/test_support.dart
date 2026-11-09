@@ -29,6 +29,7 @@ Product makeProduct({
   String? ingredientsText,
   bool isComplete = true,
   DateTime? fetchedAt,
+  String? nutriscoreGrade = 'c',
 }) {
   return Product(
     barcode: barcode,
@@ -39,6 +40,7 @@ Product makeProduct({
     ingredientsText: ingredientsText,
     nutrition: Nutrition.empty,
     isComplete: isComplete,
+    nutriscoreGrade: nutriscoreGrade,
     fetchedAt: fetchedAt ?? DateTime(2026, 10, 29),
   );
 }
@@ -71,7 +73,7 @@ class FakeProductDataSource implements ProductDataSource {
     String query, {
     String? categoryTag,
     int page = 1,
-    int pageSize = 20,
+    int pageSize = 40,
   }) async {
     searchQueries.add(query);
     if (failWithNetworkError) {

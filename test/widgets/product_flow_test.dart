@@ -26,6 +26,7 @@ Product _indomie({bool withIngredients = true}) => makeProduct(
       barcode: '0089686010824',
       name: 'Indomie Mi Goreng',
       brand: 'Indomie',
+      nutriscoreGrade: 'b',
       additiveCodes: withIngredients ? ['E211', 'E330', 'E621'] : const [],
       ingredientsText: withIngredients ? 'Mi, minyak, garam, natrium benzoat' : null,
     );
@@ -53,6 +54,29 @@ void main() {
       expect(find.text('2 Produk'), findsOneWidget);
       expect(find.textContaining('Hanya produk yang beredar di Indonesia'), findsOneWidget);
       expect(source.searchQueries, ['']);
+    });
+
+    testWidgets('halaman utama tanpa query hanya menampilkan produk yang memiliki Nutri-Score', (tester) async {
+      _useTallScreen(tester);
+      final source = FakeProductDataSource(searchResults: [
+        makeProduct(barcode: '8990000000001', name: 'Produk A Ber-NutriScore', nutriscoreGrade: 'a'),
+        makeProduct(barcode: '8990000000002', name: 'Produk B Tanpa NutriScore', nutriscoreGrade: null),
+        makeProduct(barcode: '8990000000003', name: 'Produk C Ber-NutriScore', nutriscoreGrade: 'c'),
+      ]);
+
+      await tester.pumpWidget(MaterialApp(
+        home: SearchScreen(
+          productRepository: _repo(source),
+          additiveRepository: AdditiveRepository(dataSource: FileAdditiveDataSource()),
+        ),
+      ));
+      await tester.pump();
+
+      expect(find.text('Produk A Ber-NutriScore'), findsOneWidget);
+      expect(find.text('Produk C Ber-NutriScore'), findsOneWidget);
+      expect(find.text('Produk B Tanpa NutriScore'), findsNothing);
+      expect(find.text('2 Produk'), findsOneWidget);
+      expect(find.textContaining('Hanya produk yang beredar di Indonesia dengan Nutri-Score'), findsOneWidget);
     });
 
     testWidgets('mengetik memicu pencarian setelah jeda (debounce)', (tester) async {
@@ -334,6 +358,7 @@ extension on Product {
         name: name,
         brand: brand,
         countryTags: countryTags,
+        nutriscoreGrade: nutriscoreGrade,
         fetchedAt: fetchedAt,
         isComplete: false,
       );

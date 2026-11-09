@@ -17,6 +17,7 @@ class ProductRepository {
     ProductCache? cache,
     AdditiveRepository? additives,
     this.maxCacheAge = const Duration(days: 7),
+    this.searchCacheTtl = const Duration(minutes: 10),
     DateTime Function()? clock,
   })  : _dataSource = dataSource,
         _cache = cache ?? InMemoryProductCache(),
@@ -34,29 +35,39 @@ class ProductRepository {
   final AdditiveRepository _additives;
   final DateTime Function() _clock;
 
-  /// Cache lebih tua dari ini dianggap kedaluwarsa dan diambil ulang
-  /// (tetap dipakai sebagai cadangan bila jaringan gagal).
+  /// Cache lebih tua dari ini dianggap kedaluwarsa dan diambil ulang.
   final Duration maxCacheAge;
 
-  /// Membersihkan input barcode. Hanya angka 8-14 digit (EAN-8, UPC-A,
-  /// EAN-13, GTIN-14) yang valid; selain itu (mis. QR berisi URL) `null`.
+  /// Durasi cache hasil pencarian di memori agar perpindahan kategori berlangsung instan.
+  final Duration searchCacheTtl;
+  final Map<String, (ProductSearchResult, DateTime)> _searchCache = {};
+  final Map<String, List<Product>> _catalogCache = {};
+
+  /// Mengambil daftar produk katalog ber-Nutri-Score yang tersimpan di memori.
+  List<Product>? getCachedCatalog(String? categoryTag) =>
+      _catalogCache[categoryTag ?? ''];
+
+  /// Menyimpan produk katalog ber-Nutri-Score ke memori agar tersedia instan.
+  void setCachedCatalog(String? categoryTag, List<Product> products) {
+    _catalogCache[categoryTag ?? ''] = List.unmodifiable(products);
+  }
+
+  /// Membersihkan input barcode. Hanya angka 8-14 digit yang valid.
   static String? normalizeBarcode(String raw) {
     final cleaned = raw.replaceAll(RegExp(r'[\s-]'), '');
     return RegExp(r'^\d{8,14}$').hasMatch(cleaned) ? cleaned : null;
   }
 
   /// Mencari produk berdasarkan barcode.
-  ///
-  /// Mengembalikan `null` bila barcode tidak valid, produk tidak ada, atau
-  /// produk tidak beredar di Indonesia. Melempar [ProductSourceException]
-  /// bila gagal terhubung dan tidak ada cache sebagai cadangan.
   Future<Product?> getByBarcode(String raw, {bool forceRefresh = false}) async {
     final barcode = normalizeBarcode(raw);
     if (barcode == null) return null;
 
     final cached = await _cache.get(barcode);
-    final cachedUsable = cached != null && cached.isComplete && cached.isSoldInIndonesia;
-    final fresh = cachedUsable && _clock().difference(cached.fetchedAt) < maxCacheAge;
+    final cachedUsable =
+        cached != null && cached.isComplete && cached.isSoldInIndonesia;
+    final fresh =
+        cachedUsable && _clock().difference(cached.fetchedAt) < maxCacheAge;
     if (fresh && !forceRefresh) return cached;
 
     try {
@@ -69,13 +80,11 @@ class ProductRepository {
       }
       return null;
     } on ProductSourceException {
-      if (cachedUsable) return cached; // offline: pakai data lama
+      if (cachedUsable) return cached;
       rethrow;
     }
   }
 
-  /// Open Food Facts menyimpan sebagian UPC-A (12 digit) sebagai EAN-13 dengan
-  /// awalan 0 dan sebaliknya; coba bentuk alternatif bila bentuk asli tidak ada.
   List<String> _barcodeCandidates(String barcode) {
     return [
       barcode,
@@ -84,42 +93,61 @@ class ProductRepository {
     ];
   }
 
-  /// Mencari produk Indonesia. [query] kosong menampilkan katalog.
+  /// Mencari produk Indonesia dengan in-memory cache berkecepatan tinggi.
   Future<ProductSearchResult> search(
     String query, {
     String? categoryTag,
     int page = 1,
-    int pageSize = 20,
+    int pageSize = 40,
+    bool forceRefresh = false,
   }) async {
-    final result = await _dataSource.search(
-      query.trim(),
-      categoryTag: categoryTag,
-      page: page,
-      pageSize: pageSize,
-    );
+    final cleanQuery = query.trim();
+    final cacheKey = '$cleanQuery|${categoryTag ?? ""}|$page|$pageSize';
 
-    final seen = <String>{};
-    final products = result.products
-        .where((p) => p.isSoldInIndonesia && seen.add(p.barcode))
-        .toList();
+    if (!forceRefresh && _searchCache.containsKey(cacheKey)) {
+      final (cachedResult, cachedTime) = _searchCache[cacheKey]!;
+      if (_clock().difference(cachedTime) < searchCacheTtl) {
+        return cachedResult;
+      }
+    }
 
-    return ProductSearchResult(
-      products: products,
-      page: result.page,
-      totalCount: result.totalCount,
-      hasMore: result.hasMore,
-    );
+    try {
+      final result = await _dataSource.search(
+        cleanQuery,
+        categoryTag: categoryTag,
+        page: page,
+        pageSize: pageSize,
+      );
+
+      final seen = <String>{};
+      final products = result.products
+          .where((p) => p.isSoldInIndonesia && seen.add(p.barcode))
+          .toList();
+
+      final filteredResult = ProductSearchResult(
+        products: products,
+        page: result.page,
+        totalCount: result.totalCount,
+        hasMore: result.hasMore,
+      );
+
+      _searchCache[cacheKey] = (filteredResult, _clock());
+      return filteredResult;
+    } on ProductSourceException {
+      if (_searchCache.containsKey(cacheKey)) {
+        return _searchCache[cacheKey]!.$1;
+      }
+      rethrow;
+    }
   }
 
-  /// Melengkapi produk hasil pencarian (ringkasan) dengan komposisi lengkap.
-  /// Bila gagal diambil, mengembalikan produk apa adanya agar UI tetap tampil.
+  /// Melengkapi produk hasil pencarian dengan data detail lengkap.
   Future<Product> ensureComplete(Product product) async {
     if (product.isComplete || product.barcode.isEmpty) return product;
     return await getByBarcode(product.barcode) ?? product;
   }
 
-  /// Menganalisis aditif produk terhadap basis data aditif lokal, memakai
-  /// tag aditif Open Food Facts dan deteksi teks pada komposisi.
+  /// Menganalisis kandungan aditif produk terhadap basis data aditif lokal.
   Future<ProductAnalysis> analyze(Product product) async {
     await _additives.load();
 
@@ -135,15 +163,13 @@ class ProductRepository {
       }
     }
 
-    for (final additive in await _additives.findInIngredients(product.ingredientsText ?? '')) {
+    for (final additive
+        in await _additives.findInIngredients(product.ingredientsText ?? '')) {
       found.putIfAbsent(additive.id, () => additive);
     }
 
     final sorted = found.values.toList()
-      ..sort((a, b) {
-        final bySeverity = b.riskLevel.severity.compareTo(a.riskLevel.severity);
-        return bySeverity != 0 ? bySeverity : a.name.compareTo(b.name);
-      });
+      ..sort((a, b) => b.riskLevel.severity.compareTo(a.riskLevel.severity));
 
     return ProductAnalysis(
       product: product,
@@ -152,13 +178,9 @@ class ProductRepository {
     );
   }
 
-  /// Mencari aditif berdasarkan kode; untuk varian (`E330i`, `E450iii`) yang
-  /// tidak ada persis, gunakan kode induknya (`E330`, `E450`).
-  Future<Additive?> _lookupCode(String code) async {
-    final exact = await _additives.getById(code);
-    if (exact != null) return exact;
-
-    final match = RegExp(r'^E(\d{3,4})[a-z]+$').firstMatch(code);
-    return match == null ? null : _additives.getById('E${match.group(1)}');
+  Future<Additive?> _lookupCode(String rawCode) async {
+    final code = AdditiveRepository.normalizeCode(rawCode);
+    if (code == null) return null;
+    return await _additives.getById(code);
   }
 }
