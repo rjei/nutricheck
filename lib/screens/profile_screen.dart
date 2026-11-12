@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
+import '../widgets/app_header.dart';
 import 'login_screen.dart';
+import 'notification_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -20,35 +22,21 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu_rounded, color: primaryGreen),
-          onPressed: () {},
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Center(
-              child: Text(
-                'Nutricheck',
-                style: GoogleFonts.comfortaa(
-                  color: primaryGreen,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-              ),
+      appBar: AppHeader(
+        onNotificationTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const NotificationScreen(),
             ),
-          ),
-        ],
+          );
+        },
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // User Header Profile Card
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
@@ -65,7 +53,6 @@ class ProfileScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  // Avatar with Green Border Ring & Edit Badge
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
@@ -115,7 +102,6 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Badges Row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -180,7 +166,6 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Preferensi Diet & Alergi Section
             Text(
               'Preferensi Diet & Alergi',
               style: GoogleFonts.plusJakartaSans(
@@ -191,7 +176,6 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Condition Chips
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -224,7 +208,6 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Riwayat Favorit Section
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -279,7 +262,6 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Pengaturan Akun Section
             Text(
               'Pengaturan Akun',
               style: GoogleFonts.plusJakartaSans(
@@ -324,7 +306,7 @@ class ProfileScreen extends StatelessWidget {
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (context) => const LoginScreen()),
-                        (route) => false,
+                            (route) => false,
                       );
                     },
                   ),
@@ -436,10 +418,10 @@ class ProfileScreen extends StatelessWidget {
           trailing: titleColor == const Color(0xFFD9383A)
               ? null
               : const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Colors.grey,
-                  size: 20,
-                ),
+            Icons.chevron_right_rounded,
+            color: Colors.grey,
+            size: 20,
+          ),
           onTap: onTap,
         ),
         if (!isLast)
