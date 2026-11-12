@@ -35,6 +35,8 @@ class ProductRepository {
   final AdditiveRepository _additives;
   final DateTime Function() _clock;
 
+  ProductCache get cache => _cache;
+
   /// Cache lebih tua dari ini dianggap kedaluwarsa dan diambil ulang.
   final Duration maxCacheAge;
 

@@ -10,6 +10,7 @@ import '../data/models/product_analysis.dart';
 import '../data/models/risk_level.dart';
 import '../data/repositories/product_repository.dart';
 import '../services/auth_service.dart';
+import '../widgets/ocr_scan_dialog.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   const ProductDetailScreen({
@@ -104,6 +105,68 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
           children: [
             _HeroProductCard(product: _product, analysis: analysis),
+            if (!_product.hasIngredientData) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: Color(0xFFD97706), size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Data Komposisi Belum Lengkap',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF92400E),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Open Food Facts belum memiliki daftar komposisi produk ini. Foto label bahan kemasan untuk mendeteksi zat aditifnya.',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              color: const Color(0xFFB45309),
+                              height: 1.35,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              OcrScanDialog.show(
+                                context,
+                                initialBarcode: _product.barcode,
+                                baseProduct: _product,
+                              );
+                            },
+                            icon: const Icon(Icons.document_scanner_rounded, size: 16),
+                            label: const Text('Scan Label Bahan (OCR)'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD97706),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             if (_error != null)
               _ErrorCard(message: _error!, onRetry: _load)
