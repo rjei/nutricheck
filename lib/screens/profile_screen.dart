@@ -1,24 +1,120 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../constants/app_colors.dart';
+import '../data/models/product.dart';
 import '../services/auth_service.dart';
+import '../services/favorite_service.dart';
+import '../services/profile_avatar_service.dart';
 import '../widgets/app_header.dart';
 import 'login_screen.dart';
 import 'notification_screen.dart';
+import 'product_detail_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isUpdatingAvatar = false;
+  String? _localAvatarOverride;
+
+  static const String _defaultAvatarUrl =
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80';
+
+  Future<void> _onEditAvatarTap() async {
+    if (_isUpdatingAvatar) return;
+
+    final user = AuthService().currentUser;
+    final userId = user?.id ?? 'default_user';
+
+    setState(() => _isUpdatingAvatar = true);
+
+    try {
+      final newPath = await ProfileAvatarService.pickAndSaveGalleryAvatar(
+        userId: userId,
+      );
+
+      if (newPath == null || !mounted) return;
+
+      _localAvatarOverride = newPath;
+
+      if (user != null) {
+        AuthService().updateProfile(
+          fullName: user.fullName,
+          email: user.email,
+        );
+      }
+
+      if (!mounted) return;
+      setState(() {});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Foto profil berhasil diperbarui.',
+            style: GoogleFonts.plusJakartaSans(color: Colors.white),
+          ),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Gagal mengambil atau menyimpan foto dari galeri.',
+            style: GoogleFonts.plusJakartaSans(color: Colors.white),
+          ),
+          backgroundColor: const Color(0xFFB91C1C),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdatingAvatar = false);
+      }
+    }
+  }
+
+  void _openAllFavorites(BuildContext context, List<Product> favorites) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _AllFavoritesScreen(favorites: favorites),
+      ),
+    );
+  }
+
+  void _openProductDetail(BuildContext context, Product product) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductDetailScreen(product: product),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    const primaryGreen = Color(0xFF0F5132);
     final user = AuthService().currentUser;
 
-    final userName = user?.fullName ?? 'Budi Santoso';
-    final userMembership = user?.membershipStatus ?? 'Premium Member since January 2024';
-    final userLevel = user?.level ?? 12;
+    final userName = user?.fullName ?? 'Pengguna NutriCheck';
+    final userMembership = user?.membershipStatus ?? 'Member since 2026';
+    final userLevel = user?.level ?? 1;
     final userScore = user?.nutritionScore ?? 85;
-    final userAvatar = user?.avatarUrl ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80';
-    final selectedConditions = user?.selectedConditions ?? ['Bebas Gluten', 'Intoleransi Sulfite'];
+    final selectedConditions = (user?.selectedConditions ?? const <String>[])
+        .where((c) => c.trim().isNotEmpty)
+        .toList();
+
+    final effectiveAvatarPath = _localAvatarOverride ?? user?.avatarUrl;
+    final avatarProvider = ProfileAvatarService.resolveAvatarProvider(
+      effectiveAvatarPath,
+      fallbackUrl: _defaultAvatarUrl,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
@@ -48,40 +144,49 @@ class ProfileScreen extends StatelessWidget {
                     color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 15,
                     offset: const Offset(0, 5),
-                  )
+                  ),
                 ],
               ),
               child: Column(
                 children: [
-                  Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: const BoxDecoration(
-                          color: primaryGreen,
-                          shape: BoxShape.circle,
+                  GestureDetector(
+                    onTap: _onEditAvatarTap,
+                    child: Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: CircleAvatar(
+                            radius: 40,
+                            backgroundColor: AppColors.primarySurface,
+                            backgroundImage: avatarProvider,
+                            child: _isUpdatingAvatar
+                                ? const CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: AppColors.primary,
+                            )
+                                : null,
+                          ),
                         ),
-                        child: CircleAvatar(
-                          radius: 40,
-                          backgroundColor: const Color(0xFFE8F4EA),
-                          backgroundImage: NetworkImage(userAvatar),
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            size: 13,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: primaryGreen,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(
-                          Icons.edit_rounded,
-                          size: 12,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -89,7 +194,7 @@ class ProfileScreen extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -97,7 +202,7 @@ class ProfileScreen extends StatelessWidget {
                     userMembership,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
-                      color: Colors.grey[500],
+                      color: AppColors.textMuted,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -106,9 +211,10 @@ class ProfileScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8F4EA),
+                          color: AppColors.primarySurface,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Column(
@@ -118,14 +224,14 @@ class ProfileScreen extends StatelessWidget {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: primaryGreen,
+                                color: AppColors.primary,
                               ),
                             ),
                             Text(
                               'Healthy Eater',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 11,
-                                color: primaryGreen,
+                                color: AppColors.primary,
                               ),
                             ),
                           ],
@@ -133,7 +239,8 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFEF3D6),
                           borderRadius: BorderRadius.circular(20),
@@ -171,93 +278,138 @@ class ProfileScreen extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
 
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: selectedConditions.map((cond) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F4EA),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: primaryGreen, width: 1.2),
+            if (selectedConditions.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  'Tidak ada referensi diet dan alergi',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.check_circle_rounded, color: primaryGreen, size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        cond,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: primaryGreen,
+                ),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: selectedConditions.map((cond) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySurface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.primary, width: 1.2),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_circle_rounded,
+                            color: AppColors.primary, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          cond,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
 
             const SizedBox(height: 24),
 
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Riwayat Favorit',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                Text(
-                  'Lihat Semua',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: primaryGreen,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+            ListenableBuilder(
+              listenable: FavoriteService.instance,
+              builder: (context, _) {
+                final favorites = FavoriteService.instance.favorites;
+                final previewItems = favorites.take(3).toList();
 
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  _buildFavoriteItem(
-                    imageUrl: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=150&q=80',
-                    title: 'Salmon Avocado Salad',
-                    subtitle: 'Scan: 12 Feb 2024 • 450 kkal',
-                    isLast: false,
-                  ),
-                  _buildFavoriteItem(
-                    imageUrl: 'https://images.unsplash.com/photo-1525059696034-4967a8e1dca2?auto=format&fit=crop&w=150&q=80',
-                    title: 'Organic Quinoa Burger',
-                    subtitle: 'Scan: 10 Feb 2024 • 320 kkal',
-                    isLast: false,
-                  ),
-                  _buildFavoriteItem(
-                    imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=150&q=80',
-                    title: 'Green Revitalize Bowl',
-                    subtitle: 'Scan: 08 Feb 2024 • 280 kkal',
-                    isLast: true,
-                  ),
-                ],
-              ),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Riwayat Favorit',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => _openAllFavorites(context, favorites),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 2),
+                            child: Text(
+                              'Lihat Semua',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (previewItems.isEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          'Belum ada produk favorit. Tekan ikon hati pada halaman detail produk untuk menyimpan.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      )
+                    else
+                      Column(
+                        children: List.generate(previewItems.length, (index) {
+                          final product = previewItems[index];
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              bottom: index == previewItems.length - 1 ? 0 : 10,
+                            ),
+                            child: _FavoriteProductCard(
+                              product: product,
+                              onTap: () => _openProductDetail(context, product),
+                            ),
+                          );
+                        }),
+                      ),
+                  ],
+                );
+              },
             ),
 
             const SizedBox(height: 24),
@@ -267,7 +419,7 @@ class ProfileScreen extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
@@ -283,7 +435,7 @@ class ProfileScreen extends StatelessWidget {
                     context: context,
                     icon: Icons.notifications_none_rounded,
                     title: 'Notifikasi',
-                    titleColor: Colors.black87,
+                    titleColor: AppColors.textPrimary,
                     isLast: false,
                     onTap: () {},
                   ),
@@ -291,7 +443,7 @@ class ProfileScreen extends StatelessWidget {
                     context: context,
                     icon: Icons.shield_outlined,
                     title: 'Keamanan',
-                    titleColor: Colors.black87,
+                    titleColor: AppColors.textPrimary,
                     isLast: false,
                     onTap: () {},
                   ),
@@ -305,7 +457,8 @@ class ProfileScreen extends StatelessWidget {
                       AuthService().logout();
                       Navigator.pushAndRemoveUntil(
                         context,
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        MaterialPageRoute(
+                            builder: (context) => const LoginScreen()),
                             (route) => false,
                       );
                     },
@@ -320,80 +473,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFavoriteItem({
-    required String imageUrl,
-    required String title,
-    required String subtitle,
-    required bool isLast,
-  }) {
-    const primaryGreen = Color(0xFF0F5132);
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  imageUrl,
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 48,
-                      height: 48,
-                      color: const Color(0xFFE8F4EA),
-                      child: const Icon(Icons.restaurant, color: primaryGreen, size: 24),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.favorite_rounded,
-                color: primaryGreen,
-                size: 20,
-              ),
-            ],
-          ),
-        ),
-        if (!isLast)
-          Divider(
-            height: 1,
-            color: Colors.grey[100],
-            indent: 12,
-            endIndent: 12,
-          ),
-      ],
-    );
-  }
-
   Widget _buildSettingsTile({
     required BuildContext context,
     required IconData icon,
@@ -405,7 +484,8 @@ class ProfileScreen extends StatelessWidget {
     return Column(
       children: [
         ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
           leading: Icon(icon, color: titleColor, size: 22),
           title: Text(
             title,
@@ -419,19 +499,194 @@ class ProfileScreen extends StatelessWidget {
               ? null
               : const Icon(
             Icons.chevron_right_rounded,
-            color: Colors.grey,
+            color: AppColors.textMuted,
             size: 20,
           ),
           onTap: onTap,
         ),
         if (!isLast)
-          Divider(
+          const Divider(
             height: 1,
-            color: Colors.grey[100],
+            color: AppColors.border,
             indent: 16,
             endIndent: 16,
           ),
       ],
+    );
+  }
+}
+
+class _FavoriteProductCard extends StatelessWidget {
+  const _FavoriteProductCard({
+    required this.product,
+    required this.onTap,
+  });
+
+  final Product product;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = [
+      if (product.brand != null && product.brand!.isNotEmpty) product.brand!,
+      if (product.quantity != null && product.quantity!.isNotEmpty)
+        product.quantity!,
+    ].join(' • ');
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.025),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+                  ? Image.network(
+                product.imageUrl!,
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const _FallbackBox(),
+              )
+                  : const _FallbackBox(),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.favorite_rounded,
+              color: Color(0xFFDC2626),
+              size: 20,
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.primary,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FallbackBox extends StatelessWidget {
+  const _FallbackBox();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: AppColors.primarySurface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(
+        Icons.fastfood_rounded,
+        color: AppColors.primary,
+        size: 22,
+      ),
+    );
+  }
+}
+
+class _AllFavoritesScreen extends StatelessWidget {
+  const _AllFavoritesScreen({required this.favorites});
+
+  final List<Product> favorites;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F6FB),
+      appBar: const AppHeader(
+        title: 'Semua Favorit',
+        showBackButton: true,
+        backgroundColor: Colors.white,
+      ),
+      body: ListenableBuilder(
+        listenable: FavoriteService.instance,
+        builder: (context, _) {
+          final items = FavoriteService.instance.favorites.isNotEmpty
+              ? FavoriteService.instance.favorites
+              : favorites;
+
+          if (items.isEmpty) {
+            return Center(
+              child: Text(
+                'Belum ada produk favorit.',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            );
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final product = items[index];
+              return _FavoriteProductCard(
+                product: product,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProductDetailScreen(product: product),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

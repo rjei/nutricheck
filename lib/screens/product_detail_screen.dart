@@ -10,6 +10,7 @@ import '../data/models/product_analysis.dart';
 import '../data/models/risk_level.dart';
 import '../data/repositories/product_repository.dart';
 import '../services/auth_service.dart';
+import '../services/favorite_service.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   const ProductDetailScreen({
@@ -18,11 +19,7 @@ class ProductDetailScreen extends StatefulWidget {
     this.repository,
   });
 
-  /// Produk yang ditampilkan. Boleh berupa ringkasan hasil pencarian;
-  /// komposisi lengkap diambil otomatis.
   final Product product;
-
-  /// Untuk pengujian; default memakai [ProductRepository.instance].
   final ProductRepository? repository;
 
   @override
@@ -68,6 +65,25 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
+  Future<void> _toggleFavorite() async {
+    final favService = FavoriteService.instance;
+    final wasFavorite = favService.isFavorite(_product);
+    await favService.toggleFavorite(_product);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          wasFavorite
+              ? '${_product.name} dihapus dari favorit.'
+              : '${_product.name} ditambahkan ke favorit.',
+          style: _bodyStyle(color: Colors.white),
+        ),
+        backgroundColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final analysis = _analysis;
@@ -103,23 +119,34 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
           children: [
-            _HeroProductCard(product: _product, analysis: analysis),
+            ListenableBuilder(
+              listenable: FavoriteService.instance,
+              builder: (context, _) {
+                final isFavorite = FavoriteService.instance.isFavorite(_product);
+                return _HeroProductCard(
+                  product: _product,
+                  analysis: analysis,
+                  isFavorite: isFavorite,
+                  onToggleFavorite: _toggleFavorite,
+                );
+              },
+            ),
             const SizedBox(height: 16),
             if (_error != null)
               _ErrorCard(message: _error!, onRetry: _load)
             else if (analysis == null)
               const _LoadingCard()
             else ...[
-              _SafetySummaryCard(analysis: analysis),
-              const SizedBox(height: 16),
-              _CompositionAnalysisCard(analysis: analysis),
-              const SizedBox(height: 16),
-              _HealthProfileCard(
-                analysis: analysis,
-                conditionLabels:
-                    AuthService().currentUser?.selectedConditions ?? const [],
-              ),
-            ],
+                _SafetySummaryCard(analysis: analysis),
+                const SizedBox(height: 16),
+                _CompositionAnalysisCard(analysis: analysis),
+                const SizedBox(height: 16),
+                _HealthProfileCard(
+                  analysis: analysis,
+                  conditionLabels:
+                  AuthService().currentUser?.selectedConditions ?? const [],
+                ),
+              ],
             const SizedBox(height: 16),
             const _SourceBanner(),
           ],
@@ -224,28 +251,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 }
 
-/// Tingkat kandungan gizi per 100 g (ambang "lampu lalu lintas" FSA UK).
 enum _NutrientLevel { rendah, sedang, tinggi }
 
 extension on _NutrientLevel {
   String get label => switch (this) {
-        _NutrientLevel.rendah => 'Rendah',
-        _NutrientLevel.sedang => 'Sedang',
-        _NutrientLevel.tinggi => 'Tinggi',
-      };
+    _NutrientLevel.rendah => 'Rendah',
+    _NutrientLevel.sedang => 'Sedang',
+    _NutrientLevel.tinggi => 'Tinggi',
+  };
 
   Color get color => switch (this) {
-        _NutrientLevel.rendah => AppColors.primaryAccent,
-        _NutrientLevel.sedang => const Color(0xFFD97706),
-        _NutrientLevel.tinggi => const Color(0xFFB91C1C),
-      };
+    _NutrientLevel.rendah => AppColors.primaryAccent,
+    _NutrientLevel.sedang => const Color(0xFFD97706),
+    _NutrientLevel.tinggi => const Color(0xFFB91C1C),
+  };
 }
 
 _NutrientLevel _sugarLevel(double gPer100) => gPer100 <= 5
     ? _NutrientLevel.rendah
     : (gPer100 > 22.5 ? _NutrientLevel.tinggi : _NutrientLevel.sedang);
 
-/// Berdasarkan kadar garam (natrium x 2,5): rendah <= 0,3 g, tinggi > 1,5 g.
 _NutrientLevel _sodiumLevel(double mgPer100) {
   final saltG = mgPer100 * 2.5 / 1000;
   return saltG <= 0.3
@@ -257,10 +282,17 @@ String _number(double? value, {int digits = 0}) =>
     value == null ? '–' : value.toStringAsFixed(digits);
 
 class _HeroProductCard extends StatelessWidget {
-  const _HeroProductCard({required this.product, required this.analysis});
+  const _HeroProductCard({
+    required this.product,
+    required this.analysis,
+    required this.isFavorite,
+    required this.onToggleFavorite,
+  });
 
   final Product product;
   final ProductAnalysis? analysis;
+  final bool isFavorite;
+  final VoidCallback onToggleFavorite;
 
   @override
   Widget build(BuildContext context) {
@@ -286,13 +318,48 @@ class _HeroProductCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      product.name,
-                      style: _titleStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            product.name,
+                            style: _titleStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: onToggleFavorite,
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isFavorite
+                                  ? const Color(0xFFFEE2E2)
+                                  : AppColors.searchBackground,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isFavorite
+                                    ? const Color(0xFFFECACA)
+                                    : AppColors.border,
+                              ),
+                            ),
+                            child: Icon(
+                              isFavorite
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              size: 22,
+                              color: isFavorite
+                                  ? const Color(0xFFDC2626)
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     if (subtitle.isNotEmpty) ...[
                       const SizedBox(height: 6),
@@ -528,7 +595,7 @@ class _CompositionAnalysisCard extends StatelessWidget {
             ingredients.isNotEmpty
                 ? ingredients
                 : 'Data komposisi produk ini belum tersedia di Open Food Facts, '
-                    'sehingga tingkat keamanannya belum dapat dinilai.',
+                'sehingga tingkat keamanannya belum dapat dinilai.',
             style: _bodyStyle(
               color: AppColors.textSecondary,
               height: 1.55,
@@ -538,7 +605,7 @@ class _CompositionAnalysisCard extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               'Tidak ada aditif yang dikenali dalam basis data NutriCheck. '
-              'Basis data ini masih terbatas, jadi tetap periksa label kemasan.',
+                  'Basis data ini masih terbatas, jadi tetap periksa label kemasan.',
               style: _bodyStyle(color: AppColors.primary, fontWeight: FontWeight.w700, height: 1.45),
             ),
           ],
@@ -684,9 +751,9 @@ class _SourceBanner extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'Data produk berasal dari Open Food Facts (lisensi ODbL), database terbuka '
-                'hasil kontribusi komunitas, sehingga bisa belum lengkap atau belum terbarui. '
-                'Basis data aditif NutriCheck masih terbatas. Informasi bersifat edukatif dan '
-                'tidak menggantikan saran medis profesional.',
+                    'hasil kontribusi komunitas, sehingga bisa belum lengkap atau belum terbarui. '
+                    'Basis data aditif NutriCheck masih terbatas. Informasi bersifat edukatif dan '
+                    'tidak menggantikan saran medis profesional.',
                 style: _bodyStyle(
                   color: Colors.white.withValues(alpha: 0.92),
                   height: 1.5,
@@ -1148,18 +1215,18 @@ class _ProductVisual extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget placeholder() => Container(
-          width: 120,
-          height: 150,
-          decoration: BoxDecoration(
-            color: AppColors.primarySurface,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Icon(
-            isBeverage ? Icons.local_drink_rounded : Icons.fastfood_rounded,
-            size: 54,
-            color: AppColors.primaryAccent,
-          ),
-        );
+      width: 120,
+      height: 150,
+      decoration: BoxDecoration(
+        color: AppColors.primarySurface,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Icon(
+        isBeverage ? Icons.local_drink_rounded : Icons.fastfood_rounded,
+        size: 54,
+        color: AppColors.primaryAccent,
+      ),
+    );
 
     return Container(
       height: 180,
@@ -1174,12 +1241,12 @@ class _ProductVisual extends StatelessWidget {
           child: imageUrl == null
               ? placeholder()
               : Image.network(
-                  imageUrl!,
-                  width: 120,
-                  height: 150,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => placeholder(),
-                ),
+            imageUrl!,
+            width: 120,
+            height: 150,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => placeholder(),
+          ),
         ),
       ),
     );
