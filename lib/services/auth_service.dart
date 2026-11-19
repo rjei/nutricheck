@@ -40,8 +40,7 @@ class AuthService extends ChangeNotifier {
       _currentUser = savedUser;
       _initialized = true;
       notifyListeners();
-    } catch (_) {
-    }
+    } catch (_) {}
   }
 
   UserModel? get currentUser => _currentUser ?? _repository.currentUser;
@@ -49,13 +48,10 @@ class AuthService extends ChangeNotifier {
   bool get isLoggedIn => currentUser != null;
 
   /// Autentikasi login pengguna.
-  ///
-  /// Dapat dipanggil secara sinkron langsung (UI tidak perlu async),
-  /// sementara di latar belakang sesi disimpan persisten ke storage lokal.
   bool login(String email, String password) {
     final cleanEmail = email.trim().toLowerCase();
     final userIndex = _users.indexWhere(
-      (u) => u.email.toLowerCase() == cleanEmail && u.password == password,
+          (u) => u.email.toLowerCase() == cleanEmail && u.password == password,
     );
 
     if (userIndex != -1) {
@@ -93,7 +89,7 @@ class AuthService extends ChangeNotifier {
     final cleanEmail = email.trim().toLowerCase();
 
     final existingIndex =
-        _users.indexWhere((u) => u.email.toLowerCase() == cleanEmail);
+    _users.indexWhere((u) => u.email.toLowerCase() == cleanEmail);
     if (existingIndex != -1) {
       _currentUser = _users[existingIndex];
       _repository.login(email: cleanEmail, password: password);
@@ -149,14 +145,18 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  /// Memperbarui nama lengkap dan email profil.
+  /// Memperbarui nama lengkap, email, dan avatar profil.
   void updateProfile({
     required String fullName,
     required String email,
+    String? avatarUrl,
   }) {
     if (_currentUser != null) {
       _currentUser!.fullName = fullName.trim();
       _currentUser!.email = email.trim().toLowerCase();
+      if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
+        _currentUser!.avatarUrl = avatarUrl.trim();
+      }
 
       final idx = _users.indexWhere((u) => u.id == _currentUser!.id);
       if (idx != -1) {
@@ -164,8 +164,9 @@ class AuthService extends ChangeNotifier {
       }
 
       _repository.updateProfile(
-        fullName: fullName,
-        email: email,
+        fullName: _currentUser!.fullName,
+        email: _currentUser!.email,
+        avatarUrl: _currentUser!.avatarUrl,
       );
 
       notifyListeners();
