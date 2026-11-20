@@ -81,8 +81,8 @@ class _SearchScreenState extends State<SearchScreen>
 
   bool get _isAdditiveMode =>
       _selectedCategory.isAdditive ||
-      (_selectedCategory.tag == null &&
-          AdditiveRepository.normalizeCode(_searchQuery) != null);
+          (_selectedCategory.tag == null &&
+              AdditiveRepository.normalizeCode(_searchQuery) != null);
 
   @override
   void initState() {
@@ -186,7 +186,8 @@ class _SearchScreenState extends State<SearchScreen>
       return;
     }
 
-    final cachedCatalog = _productRepository.getCachedCatalog(_selectedCategory.tag);
+    final cachedCatalog =
+    _productRepository.getCachedCatalog(_selectedCategory.tag);
     if (query.isEmpty && cachedCatalog != null && cachedCatalog.isNotEmpty) {
       final filteredCached = _filterProducts(cachedCatalog, query);
       setState(() {
@@ -216,7 +217,8 @@ class _SearchScreenState extends State<SearchScreen>
 
       if (query.isEmpty) {
         candidateProducts = candidateProducts
-            .where((p) => p.nutriscoreGrade != null && p.nutriscoreGrade!.isNotEmpty)
+            .where(
+                (p) => p.nutriscoreGrade != null && p.nutriscoreGrade!.isNotEmpty)
             .toList();
       }
 
@@ -231,7 +233,8 @@ class _SearchScreenState extends State<SearchScreen>
       });
 
       if (query.isEmpty) {
-        _productRepository.setCachedCatalog(_selectedCategory.tag, candidateProducts);
+        _productRepository
+            .setCachedCatalog(_selectedCategory.tag, candidateProducts);
         if (hasMore) {
           _loadBackgroundProducts(requestId, page, hasMore, candidateProducts);
         }
@@ -255,11 +258,11 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Future<void> _loadBackgroundProducts(
-    int requestId,
-    int startPage,
-    bool initialHasMore,
-    List<Product> initialProducts,
-  ) async {
+      int requestId,
+      int startPage,
+      bool initialHasMore,
+      List<Product> initialProducts,
+      ) async {
     if (_isBackgroundLoading) return;
     setState(() => _isBackgroundLoading = true);
 
@@ -269,7 +272,8 @@ class _SearchScreenState extends State<SearchScreen>
     final known = accumulated.map((p) => p.barcode).toSet();
 
     try {
-      while (hasMore && currentPage < startPage + 4 && accumulated.length < 80) {
+      while (
+      hasMore && currentPage < startPage + 4 && accumulated.length < 80) {
         final nextPage = currentPage + 1;
         final nextResult = await _productRepository.search(
           '',
@@ -343,7 +347,10 @@ class _SearchScreenState extends State<SearchScreen>
 
         moreFiltered.addAll(batch);
 
-        if (!isNoQuery || moreFiltered.isNotEmpty || !hasMore || nextPage >= _page + 4) {
+        if (!isNoQuery ||
+            moreFiltered.isNotEmpty ||
+            !hasMore ||
+            nextPage >= _page + 4) {
           break;
         }
         nextPage++;
@@ -551,7 +558,7 @@ class _SearchScreenState extends State<SearchScreen>
           SliverToBoxAdapter(
             child: Padding(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+              const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -631,11 +638,11 @@ class _SearchScreenState extends State<SearchScreen>
                       scrollDirection: Axis.horizontal,
                       itemCount: _categories.length,
                       separatorBuilder: (context, index) =>
-                          const SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       itemBuilder: (context, index) {
                         final category = _categories[index];
                         final isSelected =
-                            identical(_selectedCategory, category);
+                        identical(_selectedCategory, category);
                         return GestureDetector(
                           onTap: () => _selectCategory(category),
                           child: Container(
@@ -698,15 +705,17 @@ class _SearchScreenState extends State<SearchScreen>
                     additiveMode
                         ? 'Basis data zat aditif lokal (BPOM & JECFA)'
                         : (_searchQuery.trim().isEmpty
-                            ? 'Hanya produk yang beredar di Indonesia dengan Nutri-Score • Data: Open Food Facts'
-                            : 'Hanya produk yang beredar di Indonesia • Data: Open Food Facts'),
+                        ? 'Hanya produk yang beredar di Indonesia dengan Nutri-Score • Data: Open Food Facts'
+                        : 'Hanya produk yang beredar di Indonesia • Data: Open Food Facts'),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       color: Colors.grey[600],
                     ),
                   ),
                   const SizedBox(height: 8),
-                  if ((_isLoading || _isBackgroundLoading) && _products.isNotEmpty && !additiveMode)
+                  if ((_isLoading || _isBackgroundLoading) &&
+                      _products.isNotEmpty &&
+                      !additiveMode)
                     const Padding(
                       padding: EdgeInsets.only(bottom: 4),
                       child: LinearProgressIndicator(
@@ -751,7 +760,7 @@ class _SearchScreenState extends State<SearchScreen>
               icon: Icons.search_off_rounded,
               title: 'Tidak ada aditif ditemukan',
               message:
-                  'Coba kata kunci lain seperti "E211", "micin", atau "pemanis".',
+              'Coba kata kunci lain seperti "E211", "micin", atau "pemanis".',
             ),
           ),
         ];
@@ -761,7 +770,7 @@ class _SearchScreenState extends State<SearchScreen>
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
-              (context, index) {
+                  (context, index) {
                 final additive = _additiveResults[index];
                 return AdditiveCard(
                   additive: additive,
@@ -800,7 +809,7 @@ class _SearchScreenState extends State<SearchScreen>
             message: isNoQuery
                 ? 'Belum ada produk beredar di Indonesia dengan Nutri-Score dalam kategori ini. Coba pilih kategori lain atau gunakan pencarian manual.'
                 : 'Tidak ada produk Indonesia yang cocok. Coba kata kunci lain '
-                    'seperti "indomie", "teh botol", atau "kecap".',
+                'seperti "indomie", "teh botol", atau "kecap".',
           ),
         ),
       ];
@@ -811,42 +820,42 @@ class _SearchScreenState extends State<SearchScreen>
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
-            (context, index) {
+                (context, index) {
               if (index == _products.length) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Center(
                     child: _isLoadingMore
                         ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Color(0xFF0F5132),
-                            ),
-                          )
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Color(0xFF0F5132),
+                      ),
+                    )
                         : _hasMore
-                            ? OutlinedButton(
-                                onPressed: _loadMore,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFF0F5132),
-                                  side: const BorderSide(
-                                      color: Color(0xFFD1E7DD)),
-                                ),
-                                child: Text(
-                                  'Muat Lebih Banyak',
-                                  style: GoogleFonts.plusJakartaSans(
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              )
-                            : Text(
-                                'Semua produk telah ditampilkan',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12,
-                                  color: Colors.grey[500],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
+                        ? OutlinedButton(
+                      onPressed: _loadMore,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF0F5132),
+                        side: const BorderSide(
+                            color: Color(0xFFD1E7DD)),
+                      ),
+                      child: Text(
+                        'Muat Lebih Banyak',
+                        style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.bold),
+                      ),
+                    )
+                        : Text(
+                      'Semua produk telah ditampilkan',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 );
               }

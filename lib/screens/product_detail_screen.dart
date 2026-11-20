@@ -10,6 +10,7 @@ import '../data/models/product_analysis.dart';
 import '../data/models/risk_level.dart';
 import '../data/repositories/product_repository.dart';
 import '../services/auth_service.dart';
+import '../services/favorite_service.dart';
 import '../widgets/ai_floating_button.dart';
 import '../widgets/ocr_scan_dialog.dart';
 
@@ -44,6 +45,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   void initState() {
     super.initState();
+    FavoriteService.instance.initialize();
     _load();
   }
 
@@ -68,6 +70,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             : 'Gagal memuat analisis produk.';
       });
     }
+  }
+
+  Future<void> _handleToggleFavorite() async {
+    final target = _product.name.trim().isNotEmpty ? _product : widget.product;
+    final added = await FavoriteService.instance.toggleFavorite(target);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          added
+              ? '${target.name} ditambahkan ke riwayat favorit.'
+              : '${target.name} dihapus dari riwayat favorit.',
+          style: _bodyStyle(color: Colors.white),
+        ),
+        backgroundColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -97,6 +117,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         ),
         actions: [
+          ListenableBuilder(
+            listenable: FavoriteService.instance,
+            builder: (context, _) {
+              final isFav = FavoriteService.instance.isFavorite(_product) ||
+                  FavoriteService.instance.isFavorite(widget.product);
+              return IconButton(
+                onPressed: _handleToggleFavorite,
+                icon: Icon(
+                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  color: isFav ? const Color(0xFFD9383A) : AppColors.textSecondary,
+                ),
+                tooltip: isFav ? 'Hapus dari Favorit' : 'Simpan ke Favorit',
+              );
+            },
+          ),
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.ios_share_rounded, color: AppColors.textSecondary),
@@ -178,16 +213,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             else if (analysis == null)
               const _LoadingCard()
             else ...[
-              _SafetySummaryCard(analysis: analysis),
-              const SizedBox(height: 16),
-              _CompositionAnalysisCard(analysis: analysis),
-              const SizedBox(height: 16),
-              _HealthProfileCard(
-                analysis: analysis,
-                conditionLabels:
-                    AuthService().currentUser?.selectedConditions ?? const [],
-              ),
-            ],
+                _SafetySummaryCard(analysis: analysis),
+                const SizedBox(height: 16),
+                _CompositionAnalysisCard(analysis: analysis),
+                const SizedBox(height: 16),
+                _HealthProfileCard(
+                  analysis: analysis,
+                  conditionLabels:
+                  AuthService().currentUser?.selectedConditions ?? const [],
+                ),
+              ],
             const SizedBox(height: 16),
             const _SourceBanner(),
           ],
@@ -297,16 +332,16 @@ enum _NutrientLevel { rendah, sedang, tinggi }
 
 extension on _NutrientLevel {
   String get label => switch (this) {
-        _NutrientLevel.rendah => 'Rendah',
-        _NutrientLevel.sedang => 'Sedang',
-        _NutrientLevel.tinggi => 'Tinggi',
-      };
+    _NutrientLevel.rendah => 'Rendah',
+    _NutrientLevel.sedang => 'Sedang',
+    _NutrientLevel.tinggi => 'Tinggi',
+  };
 
   Color get color => switch (this) {
-        _NutrientLevel.rendah => AppColors.primaryAccent,
-        _NutrientLevel.sedang => const Color(0xFFD97706),
-        _NutrientLevel.tinggi => const Color(0xFFB91C1C),
-      };
+    _NutrientLevel.rendah => AppColors.primaryAccent,
+    _NutrientLevel.sedang => const Color(0xFFD97706),
+    _NutrientLevel.tinggi => const Color(0xFFB91C1C),
+  };
 }
 
 _NutrientLevel _sugarLevel(double gPer100) => gPer100 <= 5
@@ -384,7 +419,6 @@ class _HeroProductCard extends StatelessWidget {
           const SizedBox(height: 18),
           _ProductVisual(imageUrl: product.imageUrl, isBeverage: product.hasCategory('en:beverages')),
           const SizedBox(height: 18),
-
           Row(
             children: [
               Expanded(
@@ -414,7 +448,6 @@ class _HeroProductCard extends StatelessWidget {
               ),
             ],
           ),
-
           if (product.barcode.isNotEmpty) ...[
             const SizedBox(height: 14),
             Container(
@@ -596,7 +629,7 @@ class _CompositionAnalysisCard extends StatelessWidget {
             ingredients.isNotEmpty
                 ? ingredients
                 : 'Data komposisi produk ini belum tersedia di Open Food Facts, '
-                    'sehingga tingkat keamanannya belum dapat dinilai.',
+                'sehingga tingkat keamanannya belum dapat dinilai.',
             style: _bodyStyle(
               color: AppColors.textSecondary,
               height: 1.55,
@@ -606,7 +639,7 @@ class _CompositionAnalysisCard extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               'Tidak ada aditif yang dikenali dalam basis data NutriCheck. '
-              'Basis data ini masih terbatas, jadi tetap periksa label kemasan.',
+                  'Basis data ini masih terbatas, jadi tetap periksa label kemasan.',
               style: _bodyStyle(color: AppColors.primary, fontWeight: FontWeight.w700, height: 1.45),
             ),
           ],
@@ -752,9 +785,9 @@ class _SourceBanner extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'Data produk berasal dari Open Food Facts (lisensi ODbL), database terbuka '
-                'hasil kontribusi komunitas, sehingga bisa belum lengkap atau belum terbarui. '
-                'Basis data aditif NutriCheck masih terbatas. Informasi bersifat edukatif dan '
-                'tidak menggantikan saran medis profesional.',
+                    'hasil kontribusi komunitas, sehingga bisa belum lengkap atau belum terbarui. '
+                    'Basis data aditif NutriCheck masih terbatas. Informasi bersifat edukatif dan '
+                    'tidak menggantikan saran medis profesional.',
                 style: _bodyStyle(
                   color: Colors.white.withValues(alpha: 0.92),
                   height: 1.5,
@@ -1216,18 +1249,18 @@ class _ProductVisual extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget placeholder() => Container(
-          width: 120,
-          height: 150,
-          decoration: BoxDecoration(
-            color: AppColors.primarySurface,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Icon(
-            isBeverage ? Icons.local_drink_rounded : Icons.fastfood_rounded,
-            size: 54,
-            color: AppColors.primaryAccent,
-          ),
-        );
+      width: 120,
+      height: 150,
+      decoration: BoxDecoration(
+        color: AppColors.primarySurface,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Icon(
+        isBeverage ? Icons.local_drink_rounded : Icons.fastfood_rounded,
+        size: 54,
+        color: AppColors.primaryAccent,
+      ),
+    );
 
     return Container(
       height: 180,
@@ -1242,12 +1275,12 @@ class _ProductVisual extends StatelessWidget {
           child: imageUrl == null
               ? placeholder()
               : Image.network(
-                  imageUrl!,
-                  width: 120,
-                  height: 150,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => placeholder(),
-                ),
+            imageUrl!,
+            width: 120,
+            height: 150,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => placeholder(),
+          ),
         ),
       ),
     );

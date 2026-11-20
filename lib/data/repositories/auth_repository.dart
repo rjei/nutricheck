@@ -89,11 +89,15 @@ class AuthRepository {
   Future<void> updateProfile({
     required String fullName,
     required String email,
+    String? avatarUrl,
   }) async {
     if (_currentUser == null) return;
     _currentUser = _currentUser!.copyWith(
       fullName: fullName.trim(),
       email: email.trim().toLowerCase(),
+      avatarUrl: (avatarUrl != null && avatarUrl.trim().isNotEmpty)
+          ? avatarUrl.trim()
+          : _currentUser!.avatarUrl,
     );
     await _dataSource.updateUser(_currentUser!);
   }
