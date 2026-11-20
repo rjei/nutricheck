@@ -10,6 +10,7 @@ import '../data/models/product_analysis.dart';
 import '../data/models/risk_level.dart';
 import '../data/repositories/product_repository.dart';
 import '../services/auth_service.dart';
+import '../widgets/ai_floating_button.dart';
 import '../widgets/ocr_scan_dialog.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -75,6 +76,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: AiFloatingButton(
+        productAnalysis: analysis,
+        label: 'Tanya AI',
+      ),
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,

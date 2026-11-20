@@ -4,6 +4,7 @@ import '../data/models/product.dart';
 import '../models/home_dashboard_data.dart';
 import '../services/home_data_service.dart';
 import '../widgets/adi_card_widget.dart';
+import '../widgets/ai_floating_button.dart';
 import '../widgets/app_footer.dart';
 import '../widgets/app_header.dart';
 import '../widgets/dominant_component_widget.dart';
@@ -128,6 +129,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _loadedTabs.contains(4) ? const ProfileScreen() : const SizedBox.shrink(),
         ],
       ),
+      floatingActionButton:
+          _currentIndex == 2 ? null : const AiFloatingButton(),
       bottomNavigationBar: AppFooter(
         currentIndex: _currentIndex,
         onTap: _onNavigationTap,
