@@ -57,12 +57,14 @@ class AiChatService extends ChangeNotifier {
   bool get isRemoteAiConfigured => _dataSource.isConfigured;
 
   /// Mengatur konteks produk yang sedang dibuka pengguna (mis. dari Detail Produk).
+  /// Jika produk berbeda dari konteks sebelumnya, riwayat chat akan direset.
   void setProductContext(ProductAnalysis? analysis) {
     if (_activeProductContext?.product.barcode == analysis?.product.barcode &&
         _activeProductContext?.product.name == analysis?.product.name) {
       return;
     }
     _activeProductContext = analysis;
+    _messages.clear();
     notifyListeners();
   }
 
