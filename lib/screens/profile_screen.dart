@@ -3,13 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import '../constants/routes.dart';
 import '../data/models/product.dart';
 import '../services/auth_service.dart';
 import '../services/favorite_service.dart';
 import '../widgets/app_header.dart';
-import 'login_screen.dart';
-import 'notification_screen.dart';
-import 'product_detail_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -111,14 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return Scaffold(
           backgroundColor: const Color(0xFFF4F6FB),
           appBar: AppHeader(
-            onNotificationTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationScreen(),
-                ),
-              );
-            },
+            onNotificationTap: () => AppRoutes.pushNotifications(context),
           ),
           body: SingleChildScrollView(
             padding:
@@ -380,13 +371,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   product: product,
                                   isLast: index ==
                                       displayedFavorites.length - 1,
-                                  onTap: () => Navigator.push(
+                                  onTap: () => AppRoutes.pushProductDetail(
                                     context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ProductDetailScreen(
-                                        product: product,
-                                      ),
-                                    ),
+                                    product: product,
                                   ),
                                 );
                               },
@@ -420,14 +407,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         title: 'Notifikasi',
                         titleColor: Colors.black87,
                         isLast: false,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const NotificationScreen(),
-                            ),
-                          );
-                        },
+                        onTap: () => AppRoutes.pushNotifications(context),
                       ),
                       _buildSettingsTile(
                         context: context,
@@ -445,12 +425,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         isLast: true,
                         onTap: () {
                           AuthService().logout();
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const LoginScreen()),
-                                (route) => false,
-                          );
+                          AppRoutes.pushLogin(context);
                         },
                       ),
                     ],

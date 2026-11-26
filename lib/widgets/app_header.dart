@@ -1,123 +1,146 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../constants/app_colors.dart';
-import '../screens/help_screen.dart';
+import '../constants/routes.dart';
 
-/// Reusable Header Component for NutriCheck screens
 class AppHeader extends StatelessWidget implements PreferredSizeWidget {
-  final String? title;
-  final Widget? titleWidget;
-  final bool showBackButton;
-  final VoidCallback? onBackTap;
-  final bool showDefaultActions;
-  final VoidCallback? onHelpTap;
-  final VoidCallback? onNotificationTap;
-  final List<Widget>? customActions;
-  final Widget? customRightWidget;
-  final Color backgroundColor;
-
   const AppHeader({
     super.key,
     this.title,
-    this.titleWidget,
+    this.showDefaultActions = true,
     this.showBackButton = false,
     this.onBackTap,
-    this.showDefaultActions = false,
     this.onHelpTap,
     this.onNotificationTap,
-    this.customActions,
     this.customRightWidget,
-    this.backgroundColor = Colors.transparent,
+    this.actions,
+    this.leading,
+    this.backgroundColor = AppColors.background,
+    this.elevation = 0,
   });
+
+  final String? title;
+  final bool showDefaultActions;
+  final bool showBackButton;
+  final VoidCallback? onBackTap;
+  final VoidCallback? onHelpTap;
+  final VoidCallback? onNotificationTap;
+  final Widget? customRightWidget;
+  final List<Widget>? actions;
+  final Widget? leading;
+  final Color backgroundColor;
+  final double elevation;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  Widget _buildContainerAction({
+    required IconData icon,
+    required String tooltip,
+    required String routeName,
+    VoidCallback? onTapOverride,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: OpenContainer<bool>(
+        tappable: false,
+        transitionType: ContainerTransitionType.fadeThrough,
+        transitionDuration: const Duration(milliseconds: 320),
+        closedElevation: 0,
+        openElevation: 0,
+        closedColor: Colors.transparent,
+        openColor: AppColors.background,
+        middleColor: AppColors.primarySurface,
+        closedShape: const CircleBorder(),
+        openShape: const RoundedRectangleBorder(),
+        closedBuilder: (context, openContainer) {
+          return SizedBox(
+            width: 40,
+            height: 40,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+              tooltip: tooltip,
+              icon: Icon(
+                icon,
+                color: AppColors.textPrimary,
+                size: 22,
+              ),
+              onPressed: onTapOverride ?? openContainer,
+            ),
+          );
+        },
+        openBuilder: (context, closeContainer) {
+          return AppRoutes.pageForRoute(routeName);
+        },
+      ),
+    );
+  }
+
+  Widget? _buildLeading(BuildContext context) {
+    if (leading != null) return leading;
+    if (!showBackButton) return null;
+
+    return IconButton(
+      icon: const Icon(
+        Icons.arrow_back_rounded,
+        color: AppColors.textPrimary,
+      ),
+      onPressed: onBackTap ?? () => Navigator.of(context).maybePop(),
+    );
+  }
+
+  List<Widget>? _buildActions() {
+    if (customRightWidget != null) {
+      return [
+        customRightWidget!,
+        const SizedBox(width: 6),
+      ];
+    }
+
+    if (actions != null) return actions;
+
+    if (showDefaultActions) {
+      return [
+        _buildContainerAction(
+          icon: Icons.help_outline_rounded,
+          tooltip: 'Bantuan',
+          routeName: AppRoutes.help,
+          onTapOverride: onHelpTap,
+        ),
+        _buildContainerAction(
+          icon: Icons.notifications_none_rounded,
+          tooltip: 'Notifikasi',
+          routeName: AppRoutes.notifications,
+          onTapOverride: onNotificationTap,
+        ),
+        const SizedBox(width: 6),
+      ];
+    }
+
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
       backgroundColor: backgroundColor,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      automaticallyImplyLeading: false,
-      titleSpacing: 16,
-      leading: showBackButton
-          ? IconButton(
-              icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-              onPressed: onBackTap ?? () => Navigator.maybePop(context),
-            )
-          : null,
-      title: titleWidget ??
-          (title != null
-              ? Text(
-                  title!,
-                  style: GoogleFonts.plusJakartaSans(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                )
-              : Text(
-                  'nutricheck',
-                  style: GoogleFonts.comfortaa(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                  ),
-                )),
-      actions: _buildActions(context),
+      surfaceTintColor: Colors.transparent,
+      elevation: elevation,
+      scrolledUnderElevation: elevation,
+      automaticallyImplyLeading: showBackButton,
+      leading: _buildLeading(context),
+      title: Text(
+        title ?? 'NutriCheck',
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary,
+        ),
+      ),
+      actions: _buildActions(),
     );
-  }
-
-  List<Widget> _buildActions(BuildContext context) {
-    if (customRightWidget != null) {
-      return [
-        Padding(
-          padding: const EdgeInsets.only(right: 16.0),
-          child: customRightWidget!,
-        ),
-      ];
-    }
-
-    if (customActions != null) {
-      return customActions!;
-    }
-
-    if (showDefaultActions) {
-      return [
-        IconButton(
-          icon: SvgPicture.asset(
-            'assets/bantuan.svg',
-            width: 22,
-            height: 22,
-            colorFilter: const ColorFilter.mode(
-              AppColors.textSecondary,
-              BlendMode.srcIn,
-            ),
-          ),
-          onPressed: onHelpTap ??
-              () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HelpScreen()),
-                );
-              },
-          tooltip: 'Bantuan',
-        ),
-        IconButton(
-          icon: const Icon(
-            Icons.notifications_none_rounded,
-            color: AppColors.textSecondary,
-            size: 24,
-          ),
-          onPressed: onNotificationTap ?? () {},
-          tooltip: 'Notifikasi',
-        ),
-        const SizedBox(width: 4),
-      ];
-    }
-
-    return [];
   }
 }

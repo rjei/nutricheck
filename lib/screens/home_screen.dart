@@ -1,5 +1,8 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
+import '../constants/routes.dart';
 import '../data/models/product.dart';
 import '../models/home_dashboard_data.dart';
 import '../services/home_data_service.dart';
@@ -10,12 +13,10 @@ import '../widgets/app_header.dart';
 import '../widgets/dominant_component_widget.dart';
 import '../widgets/recent_scan_widget.dart';
 import 'activity_screen.dart';
-import 'product_detail_screen.dart';
 import 'profile_screen.dart';
 import 'scan_screen.dart';
 import 'search_screen.dart';
 
-/// Halaman Utama Nutricheck dengan Integrasi Data Dinamis
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -25,112 +26,152 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-  final Set<int> _loadedTabs = {0};
+  int _previousIndex = 0;
   final HomeDataService _dataService = HomeDataService.instance;
 
+  late final Widget _homeTab = _buildHomeContent();
+  late final Widget _searchTab = const SearchScreen();
+  late final Widget _scanTab = const ScanScreen();
+  late final Widget _activityTab = const ActivityScreen();
+  late final Widget _profileTab = const ProfileScreen();
+
   void _onNavigationTap(int index) {
+    if (index == _currentIndex) return;
     setState(() {
+      _previousIndex = _currentIndex;
       _currentIndex = index;
     });
   }
 
   void _handleRecentProductTap(RecentScanItem item) {
-    // Navigasi ke detail produk saat riwayat scan diklik
-    Navigator.push(
+    AppRoutes.pushProductDetail(
       context,
-      MaterialPageRoute(
-        builder: (context) => ProductDetailScreen(
-          product: Product.local(
-            name: item.productName,
-            brand: item.brand,
-          ),
-        ),
+      product: Product.local(
+        name: item.productName,
+        brand: item.brand,
       ),
     );
   }
 
+  Widget _buildTabPage(int index) {
+    switch (index) {
+      case 0:
+        return _homeTab;
+      case 1:
+        return _searchTab;
+      case 2:
+        return _scanTab;
+      case 3:
+        return _activityTab;
+      case 4:
+        return _profileTab;
+      default:
+        return _homeTab;
+    }
+  }
+
   Widget _buildHomeContent() {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: const AppHeader(
-        showDefaultActions: true,
-      ),
-      body: ListenableBuilder(
-        listenable: _dataService,
-        builder: (context, _) {
-          final dailyAdiSummary = _dataService.dailyAdiSummary;
-          final weeklyPoints = _dataService.weeklyTrendPoints;
-          final dominantComponents = _dataService.dominantComponents;
-          final latestScan = _dataService.latestScanItem;
+    return Column(
+      children: [
+        const AppHeader(
+          showDefaultActions: true,
+        ),
+        Expanded(
+          child: ListenableBuilder(
+            listenable: _dataService,
+            builder: (context, _) {
+              final dailyAdiSummary = _dataService.dailyAdiSummary;
+              final weeklyPoints = _dataService.weeklyTrendPoints;
+              final dominantComponents = _dataService.dominantComponents;
+              final latestScan = _dataService.latestScanItem;
 
-          return RefreshIndicator(
-            color: AppColors.primary,
-            onRefresh: () async {
-              // Simulasi refresh data dinamis
-              await Future.delayed(const Duration(milliseconds: 600));
-              setState(() {});
+              return RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: () async {
+                  await Future.delayed(const Duration(milliseconds: 500));
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: ClampingScrollPhysics(),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 12.0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AdiCardWidget(
+                        summary: dailyAdiSummary,
+                        weeklyPoints: weeklyPoints,
+                      ),
+                      const SizedBox(height: 24),
+                      DominantComponentWidget(
+                        items: dominantComponents,
+                      ),
+                      const SizedBox(height: 24),
+                      RecentScanWidget(
+                        recentItem: latestScan,
+                        onSeeAllTap: () => _onNavigationTap(3),
+                        onStartScanTap: () => _onNavigationTap(2),
+                        onItemTap: _handleRecentProductTap,
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              );
             },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 12.0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. Batas Harian ADI (Circular Progress) & Tren Toleransi (Line Chart fl_chart)
-                  AdiCardWidget(
-                    summary: dailyAdiSummary,
-                    weeklyPoints: weeklyPoints,
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // 2. Komponen Dominan (Dynamic ListView)
-                  DominantComponentWidget(
-                    items: dominantComponents,
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // 3. Riwayat Pindai Terbaru (Bottom Section dengan Empty State)
-                  RecentScanWidget(
-                    recentItem: latestScan,
-                    onSeeAllTap: () => _onNavigationTap(3), // Pindah ke tab Riwayat
-                    onStartScanTap: () => _onNavigationTap(2), // Pindah ke tab Scan
-                    onItemTap: _handleRecentProductTap,
-                  ),
-
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+          ),
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    _loadedTabs.add(_currentIndex);
+    final isMovingBackward = _currentIndex < _previousIndex;
 
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          _buildHomeContent(),
-          _loadedTabs.contains(1) ? const SearchScreen() : const SizedBox.shrink(),
-          _currentIndex == 2 ? const ScanScreen() : const SizedBox.shrink(),
-          _loadedTabs.contains(3) ? const ActivityScreen() : const SizedBox.shrink(),
-          _loadedTabs.contains(4) ? const ProfileScreen() : const SizedBox.shrink(),
-        ],
+      backgroundColor: AppColors.background,
+      body: PageTransitionSwitcher(
+        duration: const Duration(milliseconds: 360),
+        reverse: isMovingBackward,
+        transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
+          final curvedPrimary = CurvedAnimation(
+            parent: primaryAnimation,
+            curve: Curves.easeInOutCubic,
+          );
+          final curvedSecondary = CurvedAnimation(
+            parent: secondaryAnimation,
+            curve: Curves.easeInOutCubic,
+          );
+
+          return SharedAxisTransition(
+            animation: curvedPrimary,
+            secondaryAnimation: curvedSecondary,
+            transitionType: SharedAxisTransitionType.horizontal,
+            fillColor: AppColors.background,
+            child: child,
+          );
+        },
+        child: RepaintBoundary(
+          key: ValueKey<int>(_currentIndex),
+          child: _buildTabPage(_currentIndex),
+        ),
       ),
-      floatingActionButton:
-          _currentIndex == 2 ? null : const AiFloatingButton(),
+      floatingActionButton: _currentIndex == 2
+          ? null
+          : Theme(
+        data: Theme.of(context).copyWith(
+          floatingActionButtonTheme: const FloatingActionButtonThemeData(
+            elevation: 0,
+            highlightElevation: 0,
+            backgroundColor: Colors.transparent,
+          ),
+        ),
+        child: const AiFloatingButton(),
+      ),
       bottomNavigationBar: AppFooter(
         currentIndex: _currentIndex,
         onTap: _onNavigationTap,

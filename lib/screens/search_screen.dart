@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../constants/risk_level_style.dart';
+import '../constants/routes.dart';
 import '../data/datasources/product_data_source.dart';
 import '../data/models/additive.dart';
 import '../data/models/product.dart';
@@ -17,7 +18,6 @@ import '../widgets/message_panel.dart';
 import '../widgets/product_card.dart';
 import '../widgets/search_filter_panel.dart';
 import '../widgets/searchbar.dart';
-import 'product_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({
@@ -217,8 +217,8 @@ class _SearchScreenState extends State<SearchScreen>
 
       if (query.isEmpty) {
         candidateProducts = candidateProducts
-            .where(
-                (p) => p.nutriscoreGrade != null && p.nutriscoreGrade!.isNotEmpty)
+            .where((p) =>
+        p.nutriscoreGrade != null && p.nutriscoreGrade!.isNotEmpty)
             .toList();
       }
 
@@ -383,14 +383,9 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   void _openProduct(Product product) {
-    Navigator.push(
+    AppRoutes.pushProductDetail(
       context,
-      MaterialPageRoute(
-        builder: (context) => ProductDetailScreen(
-          product: product,
-          repository: widget.productRepository,
-        ),
-      ),
+      product: product,
     );
   }
 

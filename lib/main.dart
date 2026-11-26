@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
+
+import 'constants/app_colors.dart';
+import 'constants/routes.dart';
 import 'services/auth_service.dart';
 
 void main() async {
@@ -15,15 +16,14 @@ class NutriCheckApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = AuthService();
-    return MaterialApp(
+    return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'NutriCheck',
       theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFFF9FAFB),
+        scaffoldBackgroundColor: AppColors.background,
         textTheme: GoogleFonts.plusJakartaSansTextTheme(),
       ),
-      home: authService.isLoggedIn ? const HomeScreen() : const LoginScreen(),
+      routerConfig: AppRoutes.router,
     );
   }
 }

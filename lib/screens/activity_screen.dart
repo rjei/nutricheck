@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../constants/app_colors.dart';
-import '../models/activity_product.dart';
+import '../constants/routes.dart';
 import '../data/models/product.dart';
+import '../models/activity_product.dart';
 import '../widgets/app_header.dart';
 import '../widgets/searchbar.dart';
-import 'product_detail_screen.dart';
 
 class ActivityScreen extends StatefulWidget {
   const ActivityScreen({super.key});
@@ -74,7 +74,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
         sodium: 850,
         date: now.subtract(const Duration(days: 1)),
         isConsumed: true,
-        warning: 'Kandungan natrium sangat tinggi (850 mg). Konsumsi terbatas sangat disarankan.',
+        warning:
+        'Kandungan natrium sangat tinggi (850 mg). Konsumsi terbatas sangat disarankan.',
       ),
       ActivityProduct(
         brand: 'SEGAR',
@@ -131,12 +132,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
         HistoryFilter.aman => product.safety == ProductSafety.aman,
       };
       final matchesTime = switch (_timeFilter) {
-        'Hari Ini' =>
-        product.date.year == now.year &&
+        'Hari Ini' => product.date.year == now.year &&
             product.date.month == now.month &&
             product.date.day == now.day,
-        'Minggu Ini' =>
-        now.difference(product.date).inDays < 7 &&
+        'Minggu Ini' => now.difference(product.date).inDays < 7 &&
             product.date.isBefore(now.add(const Duration(days: 1))),
         'Bulan Ini' =>
         product.date.year == now.year && product.date.month == now.month,
@@ -322,12 +321,11 @@ class _ActivityScreenState extends State<ActivityScreen> {
               product: product,
               onConsumedChanged: (value) =>
                   setState(() => product.isConsumed = value),
-              onTap: () => Navigator.push(
+              onTap: () => AppRoutes.pushProductDetail(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => ProductDetailScreen(
-                    product: Product.local(name: product.title, brand: product.brand),
-                  ),
+                product: Product.local(
+                  name: product.title,
+                  brand: product.brand,
                 ),
               ),
             ),
@@ -457,11 +455,12 @@ class _ActivityScreenState extends State<ActivityScreen> {
       double size,
       FontWeight weight, [
         Color color = AppColors.textPrimary,
-      ]) => GoogleFonts.plusJakartaSans(
-    fontSize: size,
-    fontWeight: weight,
-    color: color,
-  );
+      ]) =>
+      GoogleFonts.plusJakartaSans(
+        fontSize: size,
+        fontWeight: weight,
+        color: color,
+      );
 }
 
 class _FilterChip extends StatelessWidget {
@@ -616,7 +615,8 @@ class _ProgressSegment extends StatelessWidget {
     flex: value == 0 ? 1 : value,
     child: Container(
       height: 8,
-      color: total == 0 || value == 0 ? color.withValues(alpha: 0.15) : color,
+      color:
+      total == 0 || value == 0 ? color.withValues(alpha: 0.15) : color,
     ),
   );
 }
@@ -889,7 +889,8 @@ class _NutritionPill extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 9,
               fontWeight: FontWeight.w700,
-              color: warning ? const Color(0xFFC62828) : AppColors.textPrimary,
+              color:
+              warning ? const Color(0xFFC62828) : AppColors.textPrimary,
             ),
           ),
           if (warning)
