@@ -96,11 +96,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context, _) {
         final user = AuthService().currentUser;
 
-        final userName = user?.fullName ?? 'Budi Santoso';
-        final userMembership =
-            user?.membershipStatus ?? 'Premium Member since January 2024';
-        final userLevel = user?.level ?? 12;
-        final userScore = user?.nutritionScore ?? 85;
+        final userName = user?.fullName ?? 'Pengguna';
+        final userMembership = user?.email ?? '';
+        const userLevel = 1;
+        const userScore = 85;
         final userAvatar = user?.avatarUrl ?? _defaultAvatar;
         final avatarProvider = _avatarImageProvider(userAvatar);
         final selectedConditions = user?.selectedConditions ??

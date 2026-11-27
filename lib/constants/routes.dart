@@ -37,6 +37,27 @@ class AppRoutes {
 
   static final GoRouter router = GoRouter(
     initialLocation: AuthService().isLoggedIn ? home : login,
+    refreshListenable: AuthService(),
+    redirect: (context, state) {
+      final auth = AuthService();
+      final loggedIn = auth.isLoggedIn;
+      final location = state.matchedLocation;
+
+      if (!loggedIn) {
+        return location == login ? null : login;
+      }
+
+      final hasCompletedSurvey =
+          auth.currentUser?.hasCompletedHealthSurvey ?? false;
+      if (!hasCompletedSurvey) {
+        return location == healthSurvey ? null : healthSurvey;
+      }
+
+      if (location == login) {
+        return home;
+      }
+      return null;
+    },
     routes: [
       GoRoute(
         path: home,

@@ -1,182 +1,146 @@
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import '../data/datasources/auth_data_source.dart';
 import '../data/repositories/auth_repository.dart';
 import '../models/user_model.dart';
 
-/// Service otentikasi aplikasi NutriCheck berbasis [ChangeNotifier].
-///
-/// Menggunakan pola Singleton dan mendelegasikan penyimpanan ke [AuthRepository].
-/// Menjaga kompatibilitas penuh (backward-compatible) dengan kode UI yang ada,
-/// namun kini datanya tersimpan persisten ke basis data lokal ([LocalAuthDataSource])
-/// dan siap dihubungkan ke Firebase ([FirebaseAuthDataSource]) di masa depan.
 class AuthService extends ChangeNotifier {
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
-  AuthService._internal() {
-    _initMemoryFromSeed();
-  }
+  AuthService._internal();
 
   final AuthRepository _repository = AuthRepository.instance;
 
-  final List<UserModel> _users = [];
   UserModel? _currentUser;
   bool _initialized = false;
+  StreamSubscription<User?>? _authSub;
 
-  void _initMemoryFromSeed() {
-    if (_users.isEmpty) {
-      _users.add(LocalAuthDataSource.defaultSeedUser);
-    }
-  }
-
-  /// Menginisialisasi service saat aplikasi dibuka, memuat sesi tersimpan dari storage lokal.
   Future<void> initialize() async {
     if (_initialized) return;
     try {
-      final savedUser = await _repository.initialize();
-      final all = await _repository.getAllUsers();
-
-      _users.clear();
-      _users.addAll(all);
-      _currentUser = savedUser;
+      _currentUser = await _repository.initialize();
+      _authSub ??= _repository.authStateChanges().listen((fbUser) async {
+        if (fbUser == null) {
+          if (_currentUser != null) {
+            _currentUser = null;
+            notifyListeners();
+          }
+        } else if (_currentUser?.id != fbUser.uid) {
+          _currentUser = await _repository.dataSource.getActiveSession();
+          notifyListeners();
+        }
+      });
       _initialized = true;
       notifyListeners();
-    } catch (_) {}
+    } catch (_) {
+      _initialized = true;
+    }
   }
 
   UserModel? get currentUser => _currentUser ?? _repository.currentUser;
-  List<UserModel> get allUsers => List.unmodifiable(_users);
   bool get isLoggedIn => currentUser != null;
 
-  /// Autentikasi login pengguna.
-  bool login(String email, String password) {
-    final cleanEmail = email.trim().toLowerCase();
-    final userIndex = _users.indexWhere(
-          (u) => u.email.toLowerCase() == cleanEmail && u.password == password,
-    );
-
-    if (userIndex != -1) {
-      _currentUser = _users[userIndex];
-      _repository.login(email: cleanEmail, password: password);
-      notifyListeners();
-      return true;
-    }
-    return false;
+  @visibleForTesting
+  void setTestUser(UserModel? user) {
+    _currentUser = user;
+    notifyListeners();
   }
 
-  /// Versi asinkron dari login jika caller ingin menunggu I/O storage selesai.
   Future<bool> loginAsync(String email, String password) async {
     final user = await _repository.login(email: email, password: password);
     if (user != null) {
       _currentUser = user;
-      final idx = _users.indexWhere((u) => u.id == user.id);
-      if (idx != -1) {
-        _users[idx] = user;
-      } else {
-        _users.add(user);
-      }
       notifyListeners();
       return true;
     }
     return false;
   }
 
-  /// Mendaftarkan pengguna baru dan otomatis menyimpan secara persisten.
-  UserModel registerUser({
+  Future<UserModel?> registerUser({
     required String fullName,
     required String email,
     required String password,
-  }) {
-    final cleanEmail = email.trim().toLowerCase();
-
-    final existingIndex =
-    _users.indexWhere((u) => u.email.toLowerCase() == cleanEmail);
-    if (existingIndex != -1) {
-      _currentUser = _users[existingIndex];
-      _repository.login(email: cleanEmail, password: password);
-      notifyListeners();
-      return _currentUser!;
-    }
-
-    final newUser = UserModel(
-      id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
-      fullName: fullName.trim(),
-      email: cleanEmail,
-      password: password,
-      selectedConditions: ['Bebas Gluten'],
-      primaryGoal: 'Deteksi Bahan Berbahaya & ADI',
-      membershipStatus: 'Member since 2026',
-      level: 1,
-      nutritionScore: 90,
-    );
-
-    _users.add(newUser);
-    _currentUser = newUser;
-
-    _repository.register(
+  }) async {
+    final user = await _repository.register(
       fullName: fullName,
       email: email,
       password: password,
     );
-
+    _currentUser = user;
     notifyListeners();
-    return newUser;
+    return user;
   }
 
-  /// Memperbarui kondisi kesehatan dan target pengguna.
-  void updateHealthSurvey({
+  Future<bool> signInWithGoogle() async {
+    final user = await _repository.signInWithGoogle();
+    if (user != null) {
+      _currentUser = user;
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> updateHealthSurvey({
     required List<String> conditions,
     required String primaryGoal,
-  }) {
-    if (_currentUser != null) {
-      _currentUser!.selectedConditions = List.from(conditions);
-      _currentUser!.primaryGoal = primaryGoal;
-
-      final idx = _users.indexWhere((u) => u.id == _currentUser!.id);
-      if (idx != -1) {
-        _users[idx] = _currentUser!;
-      }
-
-      _repository.updateHealthSurvey(
-        conditions: conditions,
-        primaryGoal: primaryGoal,
-      );
-
-      notifyListeners();
-    }
+    bool hasCompletedHealthSurvey = true,
+  }) async {
+    if (_currentUser == null) return;
+    _currentUser = _currentUser!.copyWith(
+      selectedConditions: List.from(conditions),
+      primaryGoal: primaryGoal,
+      hasCompletedHealthSurvey: hasCompletedHealthSurvey,
+    );
+    notifyListeners();
+    await _repository.updateHealthSurvey(
+      conditions: conditions,
+      primaryGoal: primaryGoal,
+      hasCompletedHealthSurvey: hasCompletedHealthSurvey,
+    );
   }
 
-  /// Memperbarui nama lengkap, email, dan avatar profil.
-  void updateProfile({
+  Future<void> updateHasCompletedSurvey(bool completed) async {
+    if (_currentUser == null) return;
+    _currentUser = _currentUser!.copyWith(
+      hasCompletedHealthSurvey: completed,
+    );
+    notifyListeners();
+    await _repository.updateHasCompletedSurvey(completed);
+  }
+
+  Future<void> updateProfile({
     required String fullName,
     required String email,
     String? avatarUrl,
-  }) {
-    if (_currentUser != null) {
-      _currentUser!.fullName = fullName.trim();
-      _currentUser!.email = email.trim().toLowerCase();
-      if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
-        _currentUser!.avatarUrl = avatarUrl.trim();
-      }
-
-      final idx = _users.indexWhere((u) => u.id == _currentUser!.id);
-      if (idx != -1) {
-        _users[idx] = _currentUser!;
-      }
-
-      _repository.updateProfile(
-        fullName: _currentUser!.fullName,
-        email: _currentUser!.email,
-        avatarUrl: _currentUser!.avatarUrl,
-      );
-
-      notifyListeners();
-    }
+  }) async {
+    if (_currentUser == null) return;
+    _currentUser = _currentUser!.copyWith(
+      fullName: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      avatarUrl: (avatarUrl != null && avatarUrl.trim().isNotEmpty)
+          ? avatarUrl.trim()
+          : _currentUser!.avatarUrl,
+    );
+    notifyListeners();
+    await _repository.updateProfile(
+      fullName: _currentUser!.fullName,
+      email: _currentUser!.email,
+      avatarUrl: _currentUser!.avatarUrl,
+    );
   }
 
-  /// Logout akun aktif dan hapus sesi dari storage lokal.
-  void logout() {
+  Future<void> logout() async {
     _currentUser = null;
-    _repository.logout();
     notifyListeners();
+    try {
+      await _repository.logout();
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
   }
 }

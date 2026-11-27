@@ -1,53 +1,97 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutricheck/data/datasources/auth_data_source.dart';
+import 'package:nutricheck/data/models/user_model.dart';
 import 'package:nutricheck/data/repositories/auth_repository.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+class _FakeAuthDataSource implements AuthDataSource {
+  final Map<String, UserModel> _users = {};
+  UserModel? _activeUser;
+
+  @override
+  Stream<User?> authStateChanges() => const Stream.empty();
+
+  @override
+  Future<void> clearActiveSession() async {
+    _activeUser = null;
+  }
+
+  @override
+  Future<UserModel?> getActiveSession() async => _activeUser;
+
+  @override
+  Future<UserModel?> getUserByEmail(String email) async {
+    final clean = email.trim().toLowerCase();
+    for (final u in _users.values) {
+      if (u.email.toLowerCase() == clean) return u;
+    }
+    return null;
+  }
+
+  @override
+  Future<UserModel?> getUserById(String id) async => _users[id];
+
+  @override
+  Future<UserModel?> login({
+    required String email,
+    required String password,
+  }) async {
+    final user = await getUserByEmail(email);
+    if (user == null || password != 'valid_pass') return null;
+    _activeUser = user;
+    return user;
+  }
+
+  @override
+  Future<UserModel> register({
+    required String fullName,
+    required String email,
+    required String password,
+  }) async {
+    final user = UserModel(
+      id: 'uid_${_users.length + 1}',
+      fullName: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      provider: 'email',
+      hasCompletedHealthSurvey: false,
+    );
+    _users[user.id] = user;
+    _activeUser = user;
+    return user;
+  }
+
+  @override
+  Future<UserModel?> signInWithGoogle() async {
+    final user = UserModel(
+      id: 'google_uid_1',
+      fullName: 'Google User',
+      email: 'google.user@gmail.com',
+      provider: 'google',
+      hasCompletedHealthSurvey: false,
+    );
+    _users[user.id] = user;
+    _activeUser = user;
+    return user;
+  }
+
+  @override
+  Future<void> updateUser(UserModel user) async {
+    _users[user.id] = user;
+    if (_activeUser?.id == user.id) _activeUser = user;
+  }
+}
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
-  group('LocalAuthDataSource & AuthRepository', () {
-    late LocalAuthDataSource dataSource;
+  group('AuthRepository with AuthDataSource', () {
+    late _FakeAuthDataSource dataSource;
     late AuthRepository repository;
 
-    setUp(() async {
-      SharedPreferences.setMockInitialValues({});
-      dataSource = LocalAuthDataSource();
+    setUp(() {
+      dataSource = _FakeAuthDataSource();
       repository = AuthRepository(dataSource: dataSource);
     });
 
-    test('memuat seed user default saat pertama kali diinisialisasi', () async {
-      await repository.initialize();
-      final users = await repository.getAllUsers();
-
-      expect(users, isNotEmpty);
-      expect(users.first.email, 'budi.santoso@gmail.com');
-      expect(users.first.fullName, 'Budi Santoso');
-    });
-
-    test('login berhasil dengan email dan kata sandi yang cocok', () async {
-      final user = await repository.login(
-        email: 'budi.santoso@gmail.com',
-        password: 'password123',
-      );
-
-      expect(user, isNotNull);
-      expect(user!.fullName, 'Budi Santoso');
-      expect(repository.isLoggedIn, isTrue);
-      expect(repository.currentUser?.id, user.id);
-    });
-
-    test('login gagal bila kata sandi salah', () async {
-      final user = await repository.login(
-        email: 'budi.santoso@gmail.com',
-        password: 'passwordSalah',
-      );
-
-      expect(user, isNull);
-      expect(repository.isLoggedIn, isFalse);
-    });
-
-    test('mendaftarkan user baru dan menetapkannya sebagai sesi aktif', () async {
+    test('register user baru dan set sesi aktif', () async {
       final newUser = await repository.register(
         fullName: 'Ahmad Dahlan',
         email: 'ahmad@example.com',
@@ -56,86 +100,52 @@ void main() {
 
       expect(newUser.fullName, 'Ahmad Dahlan');
       expect(newUser.email, 'ahmad@example.com');
+      expect(newUser.hasCompletedHealthSurvey, isFalse);
       expect(repository.isLoggedIn, isTrue);
-      expect(repository.currentUser?.email, 'ahmad@example.com');
-
-      final allUsers = await repository.getAllUsers();
-      expect(allUsers.any((u) => u.email == 'ahmad@example.com'), isTrue);
     });
 
-    test('memperbarui survei kesehatan dan tersimpan di database', () async {
-      await repository.login(
-        email: 'budi.santoso@gmail.com',
-        password: 'password123',
+    test('login berhasil dengan kredensial valid dan gagal jika salah', () async {
+      await repository.register(
+        fullName: 'Budi',
+        email: 'budi@gmail.com',
+        password: 'valid_pass',
       );
-
-      await repository.updateHealthSurvey(
-        conditions: ['Intoleransi Laktosa', 'Riwayat Asma'],
-        primaryGoal: 'Batasi Natrium & Alergen',
-      );
-
-      expect(repository.currentUser?.selectedConditions, [
-        'Intoleransi Laktosa',
-        'Riwayat Asma',
-      ]);
-      expect(repository.currentUser?.primaryGoal, 'Batasi Natrium & Alergen');
-
-      // Verifikasi tersimpan di data source
-      final fetched = await dataSource.getUserById('usr_001');
-      expect(fetched?.selectedConditions, [
-        'Intoleransi Laktosa',
-        'Riwayat Asma',
-      ]);
-    });
-
-    test('memperbarui profil pengguna', () async {
-      await repository.login(
-        email: 'budi.santoso@gmail.com',
-        password: 'password123',
-      );
-
-      await repository.updateProfile(
-        fullName: 'Budi Santoso S.Kom',
-        email: 'budi.new@gmail.com',
-      );
-
-      expect(repository.currentUser?.fullName, 'Budi Santoso S.Kom');
-      expect(repository.currentUser?.email, 'budi.new@gmail.com');
-    });
-
-    test('logout menghapus sesi aktif dari repository dan storage', () async {
-      await repository.login(
-        email: 'budi.santoso@gmail.com',
-        password: 'password123',
-      );
-      expect(repository.isLoggedIn, isTrue);
-
       await repository.logout();
 
+      final failed = await repository.login(
+        email: 'budi@gmail.com',
+        password: 'wrong',
+      );
+      expect(failed, isNull);
       expect(repository.isLoggedIn, isFalse);
-      expect(repository.currentUser, isNull);
 
-      final session = await dataSource.getActiveSession();
-      expect(session, isNull);
+      final success = await repository.login(
+        email: 'budi@gmail.com',
+        password: 'valid_pass',
+      );
+      expect(success, isNotNull);
+      expect(repository.isLoggedIn, isTrue);
     });
 
-    test('sesi aktif bertahan saat aplikasi di-restart (re-initialization)', () async {
-      // 1. Simulasikan pengguna login
-      await repository.login(
-        email: 'budi.santoso@gmail.com',
-        password: 'password123',
-      );
+    test('signInWithGoogle membuat sesi google provider', () async {
+      final user = await repository.signInWithGoogle();
+      expect(user, isNotNull);
+      expect(user!.provider, 'google');
       expect(repository.isLoggedIn, isTrue);
+    });
 
-      // 2. Simulasikan instance repository baru (seperti setelah restart app)
-      final newRepositoryInstance = AuthRepository(dataSource: LocalAuthDataSource());
-      expect(newRepositoryInstance.isLoggedIn, isFalse);
+    test('updateHealthSurvey dan updateHasCompletedSurvey tersimpan', () async {
+      await repository.signInWithGoogle();
+      await repository.updateHealthSurvey(
+        conditions: ['Intoleransi Laktosa'],
+        primaryGoal: 'Batasi Natrium',
+      );
 
-      // 3. Panggil initialize() seperti di main()
-      await newRepositoryInstance.initialize();
+      expect(repository.currentUser?.hasCompletedHealthSurvey, isTrue);
+      expect(repository.currentUser?.selectedConditions, ['Intoleransi Laktosa']);
 
-      expect(newRepositoryInstance.isLoggedIn, isTrue);
-      expect(newRepositoryInstance.currentUser?.email, 'budi.santoso@gmail.com');
+      await repository.updateHasCompletedSurvey(false);
+      expect(repository.currentUser?.hasCompletedHealthSurvey, isFalse);
     });
   });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutricheck/data/models/product.dart';
+import 'package:nutricheck/data/models/user_model.dart';
 import 'package:nutricheck/data/repositories/additive_repository.dart';
 import 'package:nutricheck/data/repositories/product_repository.dart';
 import 'package:nutricheck/screens/product_detail_screen.dart';
@@ -205,7 +206,13 @@ void main() {
     testWidgets('menampilkan aditif nyata, risiko, dan peringatan profil kesehatan', (tester) async {
       _useTallScreen(tester);
       // Budi punya kondisi "Hipertensi / Sensitif Garam"; E211 & E621 memicunya.
-      AuthService().login('budi.santoso@gmail.com', 'password123');
+      AuthService().setTestUser(UserModel(
+        id: 'usr_001',
+        fullName: 'Budi Santoso',
+        email: 'budi.santoso@gmail.com',
+        selectedConditions: const ['Bebas Gluten', 'Hipertensi / Sensitif Garam'],
+        hasCompletedHealthSurvey: true,
+      ));
 
       await tester.pumpWidget(MaterialApp(
         home: ProductDetailScreen(
@@ -233,9 +240,13 @@ void main() {
 
     testWidgets('tanpa data komposisi tidak dinyatakan Aman', (tester) async {
       _useTallScreen(tester);
-      final loggedIn = AuthService().login('budi.santoso@gmail.com', 'password123');
-      // ignore: avoid_print
-      print('DEBUG: loggedIn=$loggedIn, user=${AuthService().currentUser?.email}, conditions=${AuthService().currentUser?.selectedConditions}');
+      AuthService().setTestUser(UserModel(
+        id: 'usr_001',
+        fullName: 'Budi Santoso',
+        email: 'budi.santoso@gmail.com',
+        selectedConditions: const ['Bebas Gluten', 'Hipertensi / Sensitif Garam'],
+        hasCompletedHealthSurvey: true,
+      ));
 
       await tester.pumpWidget(MaterialApp(
         home: ProductDetailScreen(

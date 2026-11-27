@@ -21,7 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _agreeTerms = true;
   final _authService = AuthService();
 
-  void _handleRegister() {
+  Future<void> _handleRegister() async {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -42,17 +42,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    // Register user in mock DB & navigate to Health Survey
-    _authService.registerUser(
-      fullName: name,
-      email: email,
-      password: password,
-    );
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const HealthSurveyScreen()),
-    );
+    try {
+      await _authService.registerUser(
+        fullName: name,
+        email: email,
+        password: password,
+      );
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const HealthSurveyScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showError('Pendaftaran gagal: $e');
+    }
   }
 
   void _showError(String message) {

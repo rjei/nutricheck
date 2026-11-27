@@ -18,7 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _rememberMe = true;
   final _authService = AuthService();
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -35,7 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    final success = _authService.login(email, password);
+    final success = await _authService.loginAsync(email, password);
+    if (!mounted) return;
     if (success) {
       Navigator.pushReplacement(
         context,

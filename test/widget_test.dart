@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nutricheck/data/models/user_model.dart';
 import 'package:nutricheck/data/repositories/additive_repository.dart';
 import 'package:nutricheck/data/repositories/product_repository.dart';
 import 'package:nutricheck/main.dart';
@@ -12,7 +13,12 @@ void main() {
   tearDown(() => AuthService().logout());
 
   testWidgets('NutriCheck app loads home screen when logged in', (WidgetTester tester) async {
-    AuthService().login('budi.santoso@gmail.com', 'password123');
+    AuthService().setTestUser(UserModel(
+      id: 'usr_001',
+      fullName: 'Budi Santoso',
+      email: 'budi.santoso@gmail.com',
+      hasCompletedHealthSurvey: true,
+    ));
     await tester.pumpWidget(const NutriCheckApp());
 
     expect(find.text('nutricheck'), findsOneWidget);
