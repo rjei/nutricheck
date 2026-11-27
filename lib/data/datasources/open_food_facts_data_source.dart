@@ -105,7 +105,9 @@ class OpenFoodFactsDataSource implements ProductDataSource {
     for (final hit in hits) {
       if (hit is! Map) continue;
       final product = parseProduct(Map<String, dynamic>.from(hit), complete: false);
-      if (product != null && product.name.isNotEmpty && product.isSoldInIndonesia) {
+      if (product != null &&
+          product.name.isNotEmpty &&
+          (product.countryTags.isEmpty || product.isSoldInIndonesia)) {
         products.add(product);
       }
     }
@@ -123,15 +125,15 @@ class OpenFoodFactsDataSource implements ProductDataSource {
   /// Membangun query Lucene untuk Search-a-licious.
   ///
   /// Format yang terbukti bekerja untuk multi-kata:
-  /// `countries_tags:"en:indonesia" AND kata1 AND kata2`.
+  /// `countries:"en:indonesia" AND kata1 AND kata2`.
   /// (Teks bebas multi-kata tanpa `AND`, dengan tanda kurung, atau dalam
   /// tanda kutip menghasilkan 0 hasil bila digabung dengan filter negara.)
   static String buildSearchQuery(String text, {String? categoryTag}) {
-    final buffer = StringBuffer('countries_tags:"${Product.indonesiaCountryTag}"');
+    final buffer = StringBuffer('countries:"${Product.indonesiaCountryTag}"');
 
     final category = categoryTag?.trim().toLowerCase();
     if (category != null && RegExp(r'^[a-z]{2}:[a-z0-9-]+$').hasMatch(category)) {
-      buffer.write(' AND categories_tags:"$category"');
+      buffer.write(' AND categories:"$category"');
     }
 
     final words = text

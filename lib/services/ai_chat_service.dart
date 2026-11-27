@@ -105,13 +105,13 @@ class AiChatService extends ChangeNotifier {
         replyText = await _generateLocalReply(text, collectedRecommendations);
       }
 
-      _messages.add(
-        ChatMessage(
-          id: 'ai_${DateTime.now().microsecondsSinceEpoch}',
-          role: ChatRole.assistant,
-          text: replyText,
-          recommendedProducts: collectedRecommendations,
-        ),
+      if (!_dataSource.isConfigured) {
+        await Future<void>.delayed(const Duration(milliseconds: 450));
+      }
+
+      await _streamAssistantReply(
+        replyText,
+        recommendedProducts: collectedRecommendations,
       );
     } catch (e) {
       _messages.add(
@@ -126,6 +126,52 @@ class AiChatService extends ChangeNotifier {
     } finally {
       _isSending = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _streamAssistantReply(
+    String fullText, {
+    required List<ProductAnalysis> recommendedProducts,
+  }) async {
+    final messageId = 'ai_${DateTime.now().microsecondsSinceEpoch}';
+    final tokens = RegExp(r'\S+\s*').allMatches(fullText).map((m) => m.group(0)!).toList();
+
+    if (tokens.length <= 1) {
+      _messages.add(
+        ChatMessage(
+          id: messageId,
+          role: ChatRole.assistant,
+          text: fullText,
+          recommendedProducts: recommendedProducts,
+        ),
+      );
+      return;
+    }
+
+    _messages.add(
+      ChatMessage(
+        id: messageId,
+        role: ChatRole.assistant,
+        text: '',
+      ),
+    );
+    _isSending = false;
+    notifyListeners();
+
+    final buffer = StringBuffer();
+    for (var i = 0; i < tokens.length; i++) {
+      buffer.write(tokens[i]);
+      final isLast = i == tokens.length - 1;
+      _messages[_messages.length - 1] = ChatMessage(
+        id: messageId,
+        role: ChatRole.assistant,
+        text: buffer.toString(),
+        recommendedProducts: isLast ? recommendedProducts : const [],
+      );
+      notifyListeners();
+      if (!isLast) {
+        await Future<void>.delayed(const Duration(milliseconds: 28));
+      }
     }
   }
 

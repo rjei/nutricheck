@@ -18,23 +18,23 @@ void main() {
     test('selalu menyertakan filter Indonesia', () {
       expect(
         OpenFoodFactsDataSource.buildSearchQuery(''),
-        'countries_tags:"en:indonesia"',
+        'countries:"en:indonesia"',
       );
     });
 
     test('multi-kata digabung dengan AND (format yang bekerja di OFF)', () {
       expect(
         OpenFoodFactsDataSource.buildSearchQuery('Teh  Botol'),
-        'countries_tags:"en:indonesia" AND teh AND botol',
+        'countries:"en:indonesia" AND teh AND botol',
       );
     });
 
     test('karakter spesial Lucene dan operator tidak bisa disisipkan', () {
       final q = OpenFoodFactsDataSource.buildSearchQuery(
-        'indomie" OR countries_tags:"en:france (x) -y*',
+        'indomie" OR countries:"en:france (x) -y*',
       );
       // Tanpa titik dua tidak mungkin ada filter field tambahan: satu-satunya
-      // `:` adalah milik filter negara (`countries_tags:"en:indonesia"`).
+      // `:` adalah milik filter negara (`countries:"en:indonesia"`).
       expect(':'.allMatches(q).length, 2);
       expect(q.contains('en:france'), isFalse);
       expect(q.split('"').length, 3, reason: 'hanya sepasang tanda kutip dari filter');
@@ -46,11 +46,11 @@ void main() {
     test('filter kategori hanya menerima tag yang valid', () {
       expect(
         OpenFoodFactsDataSource.buildSearchQuery('kecap', categoryTag: 'en:condiments'),
-        'countries_tags:"en:indonesia" AND categories_tags:"en:condiments" AND kecap',
+        'countries:"en:indonesia" AND categories:"en:condiments" AND kecap',
       );
       expect(
         OpenFoodFactsDataSource.buildSearchQuery('x', categoryTag: 'bad" OR 1'),
-        'countries_tags:"en:indonesia" AND x',
+        'countries:"en:indonesia" AND x',
       );
     });
 
@@ -231,7 +231,7 @@ void main() {
 
       expect(captured.host, 'search.openfoodfacts.org');
       expect(captured.queryParameters['q'],
-          'countries_tags:"en:indonesia" AND indomie AND goreng');
+          'countries:"en:indonesia" AND indomie AND goreng');
       expect(captured.queryParameters['page_size'], '20');
 
       expect(result.products.map((p) => p.name), ['Indomie Mi Goreng']);

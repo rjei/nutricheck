@@ -44,6 +44,8 @@ class ProductRepository {
   final Duration searchCacheTtl;
   final Map<String, (ProductSearchResult, DateTime)> _searchCache = {};
   final Map<String, List<Product>> _catalogCache = {};
+  final Map<String, Future<Product?>> _inFlightBarcode = {};
+  final Map<String, Future<ProductSearchResult>> _inFlightSearch = {};
 
   /// Mengambil daftar produk katalog ber-Nutri-Score yang tersimpan di memori.
   List<Product>? getCachedCatalog(String? categoryTag) =>
@@ -72,9 +74,38 @@ class ProductRepository {
         cachedUsable && _clock().difference(cached.fetchedAt) < maxCacheAge;
     if (fresh && !forceRefresh) return cached;
 
+    final existing = _inFlightBarcode[barcode];
+    if (existing != null) return existing;
+
+    final future = _fetchBarcodeFromSource(barcode, cached, cachedUsable);
+    _inFlightBarcode[barcode] = future;
     try {
-      for (final candidate in _barcodeCandidates(barcode)) {
-        final product = await _dataSource.fetchByBarcode(candidate);
+      return await future;
+    } finally {
+      _inFlightBarcode.remove(barcode);
+    }
+  }
+
+  Future<Product?> _fetchBarcodeFromSource(
+    String barcode,
+    Product? cached,
+    bool cachedUsable,
+  ) async {
+    try {
+      final candidates = _barcodeCandidates(barcode);
+      if (candidates.length == 1) {
+        final product = await _dataSource.fetchByBarcode(candidates.first);
+        if (product != null && product.isSoldInIndonesia) {
+          await _cache.put(product);
+          return product;
+        }
+        return null;
+      }
+
+      final results = await Future.wait(
+        candidates.map((c) => _dataSource.fetchByBarcode(c)),
+      );
+      for (final product in results) {
         if (product != null && product.isSoldInIndonesia) {
           await _cache.put(product);
           return product;
@@ -113,6 +144,31 @@ class ProductRepository {
       }
     }
 
+    final existing = _inFlightSearch[cacheKey];
+    if (existing != null) return existing;
+
+    final future = _fetchSearchFromSource(
+      cleanQuery,
+      categoryTag: categoryTag,
+      page: page,
+      pageSize: pageSize,
+      cacheKey: cacheKey,
+    );
+    _inFlightSearch[cacheKey] = future;
+    try {
+      return await future;
+    } finally {
+      _inFlightSearch.remove(cacheKey);
+    }
+  }
+
+  Future<ProductSearchResult> _fetchSearchFromSource(
+    String cleanQuery, {
+    String? categoryTag,
+    required int page,
+    required int pageSize,
+    required String cacheKey,
+  }) async {
     try {
       final result = await _dataSource.search(
         cleanQuery,
@@ -123,7 +179,9 @@ class ProductRepository {
 
       final seen = <String>{};
       final products = result.products
-          .where((p) => p.isSoldInIndonesia && seen.add(p.barcode))
+          .where((p) =>
+              (p.countryTags.isEmpty || p.isSoldInIndonesia) &&
+              seen.add(p.barcode))
           .toList();
 
       final filteredResult = ProductSearchResult(
